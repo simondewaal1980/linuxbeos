@@ -58,6 +58,7 @@ Laatst bijgewerkt: 2026-11-04
 | BIOS-boot (SeaBIOS) | `LINUXBEOS_SMOKE session=xfce network=connected` |
 | Screenshot UEFI | [phase0-uefi.png](screenshots/phase0-uefi.png) |
 | Screenshot BIOS | [phase0-bios.png](screenshots/phase0-bios.png) |
+| Schone checkout (`git archive HEAD`) | Build geslaagd; UEFI- en BIOS-rooktest geslaagd op de clean-build-ISO (`9e880a93…`) |
 
 | Buildgegeven | Waarde |
 |---|---|
@@ -115,3 +116,4 @@ verbinding heeft. De marker wordt door
 | 2026-11-04 | UEFI-bootstop: `insmod efi_uga` faalt met GRUB 2.14. Eigen GRUB-config toegevoegd. |
 | 2026-11-04 | GRUB bleef op het menu wachten; `set timeout=3` toegevoegd. |
 | 2026-11-04 | UEFI- en BIOS-rooktest geslaagd; screenshots opgenomen in `docs/screenshots/`. |
+| 2026-11-04 | Schone-checkouttest: `git archive HEAD` naar `/tmp/opencode/linuxbeos-clean`, gebouwd met gedeelde build-VM/cache; beide rooktesten geslaagd. |

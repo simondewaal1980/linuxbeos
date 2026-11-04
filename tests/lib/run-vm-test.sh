@@ -146,7 +146,9 @@ marker_in_log() {
 }
 
 take_screenshot() {
-  (( GUI )) && return 0
+  if (( GUI )); then
+    return 0
+  fi
   if ! have_cmd socat; then
     warn "socat ontbreekt; geen screenshot gemaakt"
     return 0
