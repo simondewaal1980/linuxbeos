@@ -1,0 +1,64 @@
+#!/bin/sh
+# live-build-configuratie voor LinuxBeOS.
+#
+# Dit bestand wordt door `lb build` uitgevoerd (via auto/). Het leest de
+# centrale waarden uit ../project.conf, dat door scripts/11-build-iso-in-vm.sh
+# naast de auto/-map in de buildmap wordt geplaatst.
+
+set -eu
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_CONF="${LINUXBEOS_PROJECT_CONF:-$HERE/../project.conf}"
+
+if [ ! -f "$PROJECT_CONF" ]; then
+  echo "FOUT: project.conf niet gevonden op $PROJECT_CONF" >&2
+  exit 1
+fi
+
+# shellcheck source=../../../config/project.conf
+. "$PROJECT_CONF"
+
+set -- noauto \
+  --mode debian \
+  --distribution "$DEBIAN_SUITE" \
+  --architectures "$DEBIAN_ARCH" \
+  --binary-images iso-hybrid \
+  --system live \
+  --initsystem systemd \
+  --chroot-filesystem squashfs \
+  --compression xz \
+  --checksums sha256 \
+  --apt-recommends true \
+  --apt-indices false \
+  --apt-source-archives false \
+  --archive-areas "$DEBIAN_ARCHIVE_AREAS" \
+  --mirror-bootstrap "$DEBIAN_MIRROR" \
+  --mirror-chroot "$DEBIAN_MIRROR" \
+  --mirror-binary "$DEBIAN_MIRROR" \
+  --security false \
+  --backports false \
+  --debian-installer none \
+  --memtest none \
+  --firmware-chroot false \
+  --firmware-binary false \
+  --win32-loader false \
+  --iso-application "$DISTRO_NAME" \
+  --iso-preparer "$DISTRO_NAME build system" \
+  --iso-publisher "$DISTRO_NAME" \
+  --iso-volume "$ISO_VOLUME" \
+  --bootappend-live "$LIVE_BOOTAPPEND" \
+  --cache true \
+  --cache-packages true
+
+# live-build 3.x (Ubuntu) kent alleen --bootloader; Debian Sid gebruikt
+# --bootloaders met een lijst. Wij ondersteunen alleen de Debian Sid-variant,
+# maar vallen terug op de oude optie zodat een handmatige build niet direct
+# stukloopt op een verouderde lb.
+if lb config --help 2>&1 | grep -q -- '--bootloaders'; then
+  set -- "$@" --bootloaders "grub-efi grub-pc"
+else
+  echo "WAARSCHUWING: deze live-build ondersteunt geen --bootloaders; val terug op --bootloader grub." >&2
+  set -- "$@" --bootloader grub
+fi
+
+lb config "$@"

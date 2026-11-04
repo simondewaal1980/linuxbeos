@@ -1,0 +1,45 @@
+# Fase 0: minimale, bruikbare XFCE-desktop in de live-sessie.
+#
+# Geen Calamares, geen Btrfs en geen BeOS-thema: die komen in fase 1-3.
+# De live-sessie gebruikt NetworkManager voor netwerk en PipeWire voor audio.
+
+# Live-systeem
+live-boot
+live-config
+live-config-systemd
+
+# Grafische omgeving
+xorg
+lightdm
+lightdm-gtk-greeter
+xfce4
+xfce4-terminal
+thunar
+
+# Netwerk
+network-manager
+network-manager-applet
+wpasupplicant
+rfkill
+
+# Audio
+pipewire
+pipewire-pulse
+wireplumber
+libspa-0.2-modules
+alsa-utils
+
+# Basistoepassingen
+firefox-esr
+sudo
+locales
+console-setup
+keyboard-configuration
+
+# Lettertypen en hardware-ondersteuning
+fonts-dejavu-core
+fonts-liberation2
+firmware-linux
+firmware-linux-nonfree
+firmware-misc-nonfree
+firmware-iwlwifi

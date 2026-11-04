@@ -1,0 +1,150 @@
+# Buildhandleiding
+
+## Vereisten op de host
+
+- Linux met hardware-virtualisatie (VT-x/AMD-V) en toegang tot `/dev/kvm`
+- QEMU (`qemu-system-x86_64`, `qemu-img`)
+- OVMF voor de UEFI-test
+- `xorriso`, `curl`, `rsync`, `ssh`, `ssh-keygen`, `sha256sum`
+- Minimaal ~25 GiB vrije schijfruimte en bij voorkeur 8 GiB RAM
+
+Controleer dit met:
+
+```sh
+scripts/00-check-host.sh
+```
+
+De host heeft **geen** live-build, debootstrap of root-rechten nodig. Alles
+wat met de ISO te maken heeft, gebeurt in de build-VM.
+
+## Build-VM
+
+```sh
+scripts/01-create-build-vm.sh
+```
+
+De eerste keer:
+
+1. Downloadt een Debian Sid `genericcloud`-image naar `.build/cache/`.
+2. Maakt een qcow2-overlay van 40 GiB.
+3. Genereert een SSH-sleutel in `.build/vm/id_ed25519`.
+4. Maakt een cloud-init seed-ISO en start QEMU.
+5. Wacht tot SSH werkt en cloud-init klaar is (inclusief pakketten).
+6. Toont de status.
+
+SSH: `ssh -p 2222 -i .build/vm/id_ed25519 builder@127.0.0.1`
+(consolewachtwoord in de VM: `linuxbeos`; SSH met wachtwoord staat uit).
+
+Beheer:
+
+```sh
+scripts/01-create-build-vm.sh --status
+scripts/01-create-build-vm.sh --log      # volg de seriële console
+scripts/01-create-build-vm.sh --stop
+scripts/01-create-build-vm.sh --recreate # schone schijf, cloud-init opnieuw
+scripts/01-create-build-vm.sh --delete
+```
+
+De cloud-init-seed bevat de publieke SSH-sleutel en het build-wachtwoord.
+Beide staan alleen in `.build/` (niet in git).
+
+## ISO bouwen
+
+```sh
+scripts/10-build-iso.sh
+```
+
+Dit script:
+
+1. Draait de hostcontrole.
+2. Zorgt dat de build-VM draait en cloud-init klaar is.
+3. Synchroniseert de projectmap naar `/home/builder/linuxbeos-src`.
+4. Voert `scripts/11-build-iso-in-vm.sh` uit als root.
+5. Haalt de ISO op naar `dist/` en controleert de SHA256.
+6. Schrijft `dist/SHA256SUMS` en `dist/build-info.txt`.
+
+Opties:
+
+```sh
+scripts/10-build-iso.sh --keep-workdir     # hergebruik buildmap/cache
+scripts/10-build-iso.sh --no-sync          # gebruik bestaande bron in de VM
+scripts/10-build-iso.sh --skip-host-check  # sla de hostcontrole over
+scripts/10-build-iso.sh --local            # bouw op een Debian Sid-host
+```
+
+De eerste build duurt lang: debootstrap van Sid, ca. 1,5-2 GB aan pakketten
+(XFCE, Firefox ESR, firmware), squashfs en ISO. Latere builds zijn sneller
+doordat de live-build-pakketcache bewaard blijft.
+
+## Live-buildconfiguratie
+
+| Pad | Functie |
+|---|---|
+| `config/project.conf` | centrale naam, versie, mirror, live-gebruiker, VM-instellingen |
+| `build/live-build/auto/config` | alle `lb config`-opties |
+| `build/live-build/config/package-lists/` | pakketten |
+| `build/live-build/config/bootloaders/grub-pc/config.cfg` | override van live-build's GRUB-menuconfiguratie |
+| `build/live-build/config/hooks/live/` | chroot-hooks (services, sudo) |
+| `build/live-build/config/includes.chroot/` | bestanden in de live-ISO |
+
+De GRUB-override is nodig omdat live-build 20250814 `insmod efi_uga` doet,
+terwijl GRUB 2.14 in Debian Sid die module niet meer levert. Zonder override
+stopt de UEFI-boot voordat het menu verschijnt. De override zet ook
+`set timeout=3`; live-build's sjabloon laat het menu anders oneindig wachten.
+
+Pas je iets aan, dan is een nieuwe `scripts/10-build-iso.sh` voldoende. De
+buildmap wordt standaard schoon opgebouwd; de pakketcache blijft bewaard.
+
+## Rooktesten
+
+```sh
+tests/test-uefi.sh
+tests/test-bios.sh
+```
+
+Beide starten de ISO met een lege 20 GiB qcow2-schijf onder `tests/vm/`.
+Headless (standaard) wachten ze op de regel:
+
+```
+LINUXBEOS_SMOKE session=xfce network=connected
+```
+
+in `tests/vm/<uefi|bios>/serial.log`. Bij succes wordt een screenshot gemaakt
+(`tests/vm/<mode>/screenshot.png`) en wordt QEMU gestopt. Bij falen wordt de
+laatste 60 regels van het seriële log getoond.
+
+Opties:
+
+```sh
+tests/test-uefi.sh --gui            # QEMU-venster; sluit het om af te ronden
+tests/test-uefi.sh --iso path.iso   # andere ISO testen
+tests/test-uefi.sh --timeout 600    # langere timeout
+tests/test-uefi.sh --keep           # testmap bewaren
+```
+
+## Handmatige controle
+
+Voor een visuele controle:
+
+```sh
+tests/test-uefi.sh --gui
+tests/test-bios.sh --gui
+```
+
+De live-sessie logt automatisch in als `live`. Controleer:
+
+- XFCE-panel en desktop verschijnen
+- NetworkManager is verbonden (pictogram in de panel)
+- Firefox ESR opent een pagina
+- `nmcli -t -f STATE general` geeft `connected`
+- `pipewire`/`wpctl status` tonen een audioserver
+
+## Opruimen
+
+```sh
+scripts/01-create-build-vm.sh --stop
+rm -rf .build dist tests/vm
+```
+
+Verwijder nooit fysieke schijven: alle scripts werken uitsluitend met
+qcow2-bestanden onder `.build/`, `dist/` en `tests/vm/`.

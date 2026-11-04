@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LinuxBeOS session ready
+Comment=Meldt aan de seriële console dat de Xfce-sessie en het netwerk gereed zijn
+Exec=/usr/local/bin/linuxbeos-session-ready
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

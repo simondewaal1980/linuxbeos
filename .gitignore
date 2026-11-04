@@ -1,0 +1,16 @@
+# Build- en testartefacten
+.build/
+dist/
+tests/vm/*
+!tests/vm/.gitkeep
+
+# Images en logs
+*.qcow2
+*.iso
+*.img
+*.log
+*.pid
+
+# Redactietijdelijk
+*~
+.DS_Store

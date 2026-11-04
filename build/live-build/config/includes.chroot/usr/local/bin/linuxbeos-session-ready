@@ -1,0 +1,18 @@
+#!/bin/sh
+# Schrijft een herkenbare regel naar de seriële console zodra de Xfce-sessie
+# draait en NetworkManager verbinding heeft. De rooktesten in tests/ lezen
+# deze regel; het is tegelijk nuttige diagnostiek voor live-boots.
+set -eu
+
+i=0
+state="unknown"
+while [ "$i" -lt 60 ]; do
+  state=$(nmcli -t -f STATE general 2>/dev/null || echo unknown)
+  [ "$state" = "connected" ] && break
+  sleep 1
+  i=$((i + 1))
+done
+
+logger -t linuxbeos-session "Xfce-sessie gereed, netwerk=$state" 2>/dev/null || true
+printf 'LINUXBEOS_SMOKE session=xfce network=%s\n' "$state" \
+  | sudo tee /dev/ttyS0 >/dev/null 2>&1 || true
