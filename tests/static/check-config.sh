@@ -137,12 +137,12 @@ if grep -q 'grub-pc' "$PROJECT_ROOT/build/live-build/auto/config"; then
 else
   fail "GRUB PC ontbreekt in auto/config"
 fi
-if grep -q 'insmod efi_uga' "$PROJECT_ROOT/build/live-build/config/bootloaders/grub-pc/config.cfg"; then
+if grep -qE '^[[:space:]]*insmod[[:space:]]+efi_uga' "$PROJECT_ROOT/build/live-build/config/bootloaders/grub-pc/config.cfg"; then
   fail "GRUB-override bevat nog insmod efi_uga (niet beschikbaar in GRUB 2.14)"
 else
   pass "GRUB-override vermijdt efi_uga"
 fi
-if grep -q 'set timeout=' "$PROJECT_ROOT/build/live-build/config/bootloaders/grub-pc/config.cfg"; then
+if grep -qE '^[[:space:]]*set[[:space:]]+timeout=' "$PROJECT_ROOT/build/live-build/config/bootloaders/grub-pc/config.cfg"; then
   pass "GRUB automatische timeout ingesteld"
 else
   fail "GRUB-timeout ontbreekt; het menu blijft anders oneindig wachten"

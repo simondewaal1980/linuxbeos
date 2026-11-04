@@ -15,11 +15,14 @@ PROJECT_ROOT="$(cd -- "$_COMMON_DIR/../.." && pwd)"
 # shellcheck source=../../config/project.conf
 . "$PROJECT_ROOT/config/project.conf"
 
-BUILD_DIR="$PROJECT_ROOT/.build"
+# Build- en testartefacten staan standaard in de projectmap. Voor een CI- of
+# schone-checkoutbuild kunnen deze paden naar een gedeelde locatie wijzen,
+# bijvoorbeeld om de build-VM en pakketcache te hergebruiken.
+BUILD_DIR="${LINUXBEOS_BUILD_DIR:-$PROJECT_ROOT/.build}"
 VM_DIR="$BUILD_DIR/vm"
 CACHE_DIR="$BUILD_DIR/cache"
-DIST_DIR="$PROJECT_ROOT/dist"
-TEST_VM_DIR="$PROJECT_ROOT/tests/vm"
+DIST_DIR="${LINUXBEOS_DIST_DIR:-$PROJECT_ROOT/dist}"
+TEST_VM_DIR="${LINUXBEOS_TEST_VM_DIR:-$PROJECT_ROOT/tests/vm}"
 
 VM_SSH_KEY="$VM_DIR/id_ed25519"
 VM_KNOWN_HOSTS="$VM_DIR/known_hosts"

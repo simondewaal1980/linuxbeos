@@ -72,6 +72,18 @@ scripts/10-build-iso.sh --skip-host-check  # sla de hostcontrole over
 scripts/10-build-iso.sh --local            # bouw op een Debian Sid-host
 ```
 
+Voor een build vanuit een schone checkout (of CI) kunnen de artefactpaden
+buiten de checkout wijzen, zodat de bestaande build-VM en cache worden
+hergebruikt:
+
+```sh
+LINUXBEOS_BUILD_DIR=/pad/naar/bestaande/.build \
+  scripts/10-build-iso.sh
+```
+
+Beschikbare variabelen: `LINUXBEOS_BUILD_DIR` (VM, cache en logs),
+`LINUXBEOS_DIST_DIR` (ISO-uitvoer) en `LINUXBEOS_TEST_VM_DIR` (test-VM's).
+
 De eerste build duurt lang: debootstrap van Sid, ca. 1,5-2 GB aan pakketten
 (XFCE, Firefox ESR, firmware), squashfs en ISO. Latere builds zijn sneller
 doordat de live-build-pakketcache bewaard blijft.
