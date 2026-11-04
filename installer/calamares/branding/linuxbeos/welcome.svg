@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="160" viewBox="0 0 460 160">
+  <title>Welkom bij LinuxBeOS</title>
+  <rect width="460" height="160" rx="12" fill="#20303c"/>
+  <circle cx="64" cy="58" r="26" fill="#e8b33a"/>
+  <rect x="26" y="98" width="76" height="14" rx="4" fill="#ffffff"/>
+  <rect x="26" y="120" width="48" height="7" rx="3" fill="#7fb0cf"/>
+  <text x="130" y="70" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="bold" fill="#ffffff">LinuxBeOS</text>
+  <text x="130" y="99" font-family="DejaVu Sans, sans-serif" font-size="15" fill="#c8d6e2">Een open-source desktop in de geest van BeOS 5</text>
+  <text x="130" y="126" font-family="DejaVu Sans, sans-serif" font-size="13" fill="#e8b33a">Installatie op ext4 · fase 1</text>
+</svg>

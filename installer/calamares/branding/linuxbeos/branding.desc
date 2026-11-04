@@ -1,0 +1,46 @@
+# Branding voor LinuxBeOS fase 1: neutrale, herkenbare vormgeving.
+# De uiteindelijke BeOS 5-look volgt in fase 3.
+---
+componentName: linuxbeos
+
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+
+windowExpanding: normal
+windowSize: 900px,560px
+windowPlacement: center
+
+sidebar: widget
+navigation: widget
+
+strings:
+    productName:         "LinuxBeOS"
+    shortProductName:    "LinuxBeOS"
+    version:             "0.1"
+    shortVersion:        "0.1"
+    versionedName:       "LinuxBeOS 0.1"
+    shortVersionedName:  "LinuxBeOS 0.1"
+    bootloaderEntryName: "LinuxBeOS"
+    # Geen externe urls in fase 1; de knoppen blijven daardoor verborgen.
+    productUrl:          ""
+    supportUrl:          ""
+    knownIssuesUrl:      ""
+    releaseNotesUrl:     ""
+    donateUrl:           ""
+
+images:
+    productIcon:    "logo.svg"
+    productLogo:    "logo.svg"
+    productWelcome: "welcome.svg"
+
+style:
+    SidebarBackground:        "#20303c"
+    SidebarText:              "#ffffff"
+    SidebarTextCurrent:       "#20303c"
+    SidebarBackgroundCurrent: "#e8b33a"
+
+slideshow: "show.qml"
+slideshowAPI: 2
+
+uploadServer:
+    type: "none"

@@ -1,0 +1,12 @@
+#!/bin/sh
+# Zorg dat de Calamares-configuratie in /etc/calamares-auto ook de QML-module
+# heeft. Calamares zoekt bij een expliciete -c-map naar <config>/qml; zonder
+# die map weigert het op te starten zodra de slideshow-QML nodig is.
+set -eu
+
+for dir in /etc/calamares /etc/calamares-auto; do
+  if [ -d "$dir" ] && [ -d /usr/share/calamares/qml ]; then
+    rm -rf "$dir/qml"
+    cp -a /usr/share/calamares/qml "$dir/qml"
+  fi
+done

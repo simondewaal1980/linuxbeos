@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>LinuxBeOS logo</title>
+  <rect width="128" height="128" rx="18" fill="#20303c"/>
+  <circle cx="64" cy="50" r="22" fill="#e8b33a"/>
+  <rect x="30" y="84" width="68" height="12" rx="4" fill="#ffffff"/>
+  <rect x="30" y="102" width="44" height="6" rx="3" fill="#7fb0cf"/>
+</svg>

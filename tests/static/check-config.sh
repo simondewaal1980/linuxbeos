@@ -18,15 +18,35 @@ required_files=(
   "build/live-build/config/package-lists/desktop.list.chroot"
   "build/live-build/config/bootloaders/grub-pc/config.cfg"
   "build/live-build/config/hooks/live/0100-services.chroot"
+  "build/live-build/config/hooks/live/0200-calamares.chroot"
   "build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-autologin.conf"
+  "build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-live.conf"
   "build/live-build/config/includes.chroot/etc/xdg/autostart/linuxbeos-session-ready.desktop"
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready"
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer"
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall"
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installed-ready"
+  "build/live-build/config/includes.chroot/etc/systemd/system/linuxbeos-installed-ready.service"
+  "build/live-build/config/includes.chroot/usr/share/applications/linuxbeos-installer.desktop"
+  "installer/calamares/settings.conf"
+  "installer/calamares/branding/linuxbeos/branding.desc"
+  "installer/calamares/branding/linuxbeos/show.qml"
+  "installer/calamares/modules/partition.conf"
+  "installer/calamares/modules/users.conf"
+  "installer/calamares/modules/unpackfs.conf"
+  "installer/calamares/modules/bootloader.conf"
+  "installer/calamares/modules/packages.conf"
+  "installer/calamares/auto/settings.conf"
+  "installer/calamares/auto/modules/partition.conf"
+  "installer/calamares/auto/modules/users.conf"
   "scripts/00-check-host.sh"
   "scripts/01-create-build-vm.sh"
   "scripts/10-build-iso.sh"
   "scripts/11-build-iso-in-vm.sh"
   "tests/test-uefi.sh"
   "tests/test-bios.sh"
+  "tests/test-install-uefi.sh"
+  "tests/test-install-bios.sh"
   "docs/development-progress.md"
 )
 for f in "${required_files[@]}"; do
@@ -41,14 +61,22 @@ step "Uitvoerbare bestanden"
 for f in \
   "build/live-build/auto/config" \
   "build/live-build/config/hooks/live/0100-services.chroot" \
+  "build/live-build/config/hooks/live/0200-calamares.chroot" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installed-ready" \
+  "build/live-build/config/includes.chroot/etc/skel/Desktop/install-linuxbeos.desktop" \
   "scripts/00-check-host.sh" \
   "scripts/01-create-build-vm.sh" \
   "scripts/10-build-iso.sh" \
   "scripts/11-build-iso-in-vm.sh" \
   "tests/test-uefi.sh" \
   "tests/test-bios.sh" \
+  "tests/test-install-uefi.sh" \
+  "tests/test-install-bios.sh" \
   "tests/lib/run-vm-test.sh" \
+  "tests/lib/run-install-test.sh" \
   "tests/static/check-config.sh"; do
   if [[ -x "$PROJECT_ROOT/$f" ]]; then
     pass "$f is uitvoerbaar"
@@ -69,7 +97,11 @@ done < <(find "$PROJECT_ROOT/scripts" "$PROJECT_ROOT/tests" -name '*.sh' -type f
 for f in \
   "build/live-build/auto/config" \
   "build/live-build/config/hooks/live/0100-services.chroot" \
-  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready"; do
+  "build/live-build/config/hooks/live/0200-calamares.chroot" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
+  "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installed-ready"; do
   if sh -n "$PROJECT_ROOT/$f" 2>/dev/null; then
     pass "sh -n $f"
   else
@@ -100,7 +132,7 @@ else
 fi
 
 step "Pakketlijst"
-for pkg in live-boot live-config-systemd xorg lightdm xfce4 network-manager firefox-esr; do
+for pkg in live-boot live-config-systemd xorg lightdm xfce4 network-manager firefox-esr calamares squashfs-tools xdotool; do
   if grep -qxF "$pkg" "$PROJECT_ROOT/build/live-build/config/package-lists/desktop.list.chroot"; then
     pass "pakket: $pkg"
   else
@@ -108,17 +140,79 @@ for pkg in live-boot live-config-systemd xorg lightdm xfce4 network-manager fire
   fi
 done
 
-step "Live-sessie"
-LIGHTDM_CONF="$PROJECT_ROOT/build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-autologin.conf"
-if grep -qxF "autologin-user=$LIVE_USER" "$LIGHTDM_CONF"; then
-  pass "LightDM-autologin voor $LIVE_USER"
+step "Calamares"
+CAL="$PROJECT_ROOT/installer/calamares"
+if grep -q 'branding: linuxbeos' "$CAL/settings.conf"; then
+  pass "branding linuxbeos geselecteerd"
 else
-  fail "LightDM-autologin voor $LIVE_USER ontbreekt"
+  fail "settings.conf selecteert de branding niet"
 fi
+for module in partition mount unpackfs fstab locale keyboard users displaymanager bootloader umount; do
+  if grep -qE "^[[:space:]]+- ${module}$" "$CAL/settings.conf"; then
+    pass "module in keten: $module"
+  else
+    fail "module ontbreekt in de Calamares-keten: $module"
+  fi
+done
+if grep -q 'run/live/medium/live/filesystem.squashfs' "$CAL/modules/unpackfs.conf"; then
+  pass "unpackfs gebruikt de live-squashfs"
+else
+  fail "unpackfs verwijst niet naar /run/live/medium/live/filesystem.squashfs"
+fi
+if grep -q 'installEFIFallback: true' "$CAL/modules/bootloader.conf"; then
+  pass "EFI-fallbackloader ingeschakeld"
+else
+  fail "installEFIFallback ontbreekt"
+fi
+if grep -q 'calamares' "$CAL/modules/packages.conf"; then
+  pass "Calamares wordt uit het doel verwijderd"
+else
+  fail "packages.conf verwijdert Calamares niet"
+fi
+if grep -q 'initialPartitioningChoice: erase' "$CAL/auto/modules/partition.conf"; then
+  pass "auto-test gebruikt erase-schijf"
+else
+  fail "auto-test selecteert geen erase-schijf"
+fi
+if grep -q 'value: "testuser"' "$CAL/auto/modules/users.conf"; then
+  pass "auto-test gebruikt de vaste testgebruiker"
+else
+  fail "auto-test heeft geen vaste testgebruiker"
+fi
+if grep -qxF '    - dialout' "$CAL/modules/users.conf" \
+   && grep -qxF '    - dialout' "$CAL/auto/modules/users.conf"; then
+  pass "gebruiker krijgt toegang tot de seriële console (dialout)"
+else
+  fail "dialout ontbreekt in de standaardgroepen"
+fi
+if grep -q '/home/${USER}/Desktop/install-linuxbeos.desktop' "$CAL/modules/shellprocess-target-cleanup.conf"; then
+  pass "installatiepictogram wordt uit de gebruikersmap verwijderd"
+else
+  fail "opschoning verwijdert het installatiepictogram niet uit /home"
+fi
+if grep -q 'quit-at-end: true' "$CAL/auto/settings.conf"; then
+  pass "auto-test sluit Calamares automatisch af"
+else
+  fail "auto-test heeft quit-at-end niet ingeschakeld"
+fi
+if grep -q 'CALAMARES_SRC' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh"; then
+  pass "buildscript neemt installer/calamares op in de ISO"
+else
+  fail "buildscript kopieert installer/calamares niet"
+fi
+
+step "Live-sessie"
+LIGHTDM_CONF="$PROJECT_ROOT/build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-live.conf"
 if grep -qxF "user-session=xfce" "$LIGHTDM_CONF"; then
   pass "LightDM-sessie is xfce"
 else
   fail "LightDM-sessie is niet xfce"
+fi
+LIGHTDM_AUTOLOGIN="$PROJECT_ROOT/build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-autologin.conf"
+if grep -qxF "autologin-user=$LIVE_USER" "$LIGHTDM_AUTOLOGIN"; then
+  pass "LightDM-autologin voor $LIVE_USER"
+else
+  fail "LightDM-autologin voor $LIVE_USER ontbreekt"
 fi
 
 step "Build-scripts"

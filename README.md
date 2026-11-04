@@ -4,10 +4,10 @@ Een Linux-distributie met een BeOS 5-geïnspireerde desktop, gebouwd op
 Debian Sid. Dit is de werknaam; de definitieve naam kan later via
 `config/project.conf` worden gewijzigd.
 
-> **Status:** fase 0 is gereed. De ISO boot in UEFI én BIOS tot een werkende
-> XFCE-desktop met netwerk. Zie
-> [docs/development-progress.md](docs/development-progress.md).
-> Volgende stap: fase 1 (Calamares).
+> **Status:** fase 0 en fase 1 zijn gereed. De ISO installeert via Calamares
+> op ext4 en het geïnstalleerde systeem boot zelfstandig op UEFI én BIOS.
+> Zie [docs/development-progress.md](docs/development-progress.md) en
+> [docs/calamares.md](docs/calamares.md). Volgende stap: fase 2 (Btrfs).
 
 ## Uitgangspunten
 
@@ -39,6 +39,10 @@ scripts/10-build-iso.sh
 # 4. Rooktesten: UEFI (OVMF) en BIOS (SeaBIOS)
 tests/test-uefi.sh
 tests/test-bios.sh
+
+# 5. Installatietests: Calamares + zelfstandige boot van het doel systeem
+tests/test-install-uefi.sh
+tests/test-install-bios.sh
 ```
 
 De build-VM is bereikbaar op `127.0.0.1:2222` (SSH-sleutel in
@@ -64,6 +68,21 @@ scripts/01-create-build-vm.sh --delete     # VM verwijderen
 
 Nog niet in fase 0: Calamares, Btrfs, Snapper en het BeOS-thema.
 
+## Wat fase 1 toevoegt
+
+- Calamares 3.4.x in de live-sessie, startbaar vanaf het bureaublad en uit
+  het menu
+- Een neutrale LinuxBeOS-branding met eigen logo en slideshow
+- De standaard keten partition → mount → unpackfs → fstab → locale →
+  keyboard → users → bootloader → umount
+- Installatie op ext4 voor UEFI én BIOS
+- Verwijdering van Calamares en de live-pakketten uit het doelsysteem
+- Een geautomatiseerde acceptatietest die installeert en daarna het
+  geïnstalleerde systeem zelfstandig laat booten
+
+Zie [docs/calamares.md](docs/calamares.md) voor de moduleketen en de
+testaanpak.
+
 ## Repository-indeling
 
 ```
@@ -81,6 +100,7 @@ docs/                     architectuur, buildhandleiding, voortgang
 ## Documentatie
 
 - [Voortgang en beslissingen](docs/development-progress.md)
+- [Calamares-installer (fase 1)](docs/calamares.md)
 - [Architectuur](docs/architecture.md)
 - [Buildhandleiding](docs/build-guide.md)
 - [Probleemoplossing](docs/troubleshooting.md)

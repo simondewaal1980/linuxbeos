@@ -1,0 +1,7 @@
+#!/bin/sh
+# Start de grafische installer vanuit de live-sessie.
+# De live-gebruiker heeft wachtwoordloos sudo; Calamares heeft rootrechten
+# nodig voor partitioneren en het schrijven naar het doel systeem.
+set -eu
+
+exec sudo -E /usr/bin/calamares "$@"

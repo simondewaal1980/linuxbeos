@@ -1,0 +1,7 @@
+#!/bin/sh
+# Meldt dat het geïnstalleerde systeem tot graphical.target is opgestart.
+# Draait alleen buiten de live-omgeving (ConditionPathExists=!/run/live).
+set -eu
+
+printf 'LINUXBEOS_INSTALLED_READY hostname=%s\n' "$(hostname)" \
+  | tee /dev/ttyS0 >/dev/null 2>&1 || true

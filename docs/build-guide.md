@@ -98,6 +98,7 @@ doordat de live-build-pakketcache bewaard blijft.
 | `build/live-build/config/bootloaders/grub-pc/config.cfg` | override van live-build's GRUB-menuconfiguratie |
 | `build/live-build/config/hooks/live/` | chroot-hooks (services, sudo) |
 | `build/live-build/config/includes.chroot/` | bestanden in de live-ISO |
+| `installer/calamares/` | Calamares-configuratie; de build kopieert die naar `/etc/calamares` en `/etc/calamares-auto` |
 
 De GRUB-override is nodig omdat live-build 20250814 `insmod efi_uga` doet,
 terwijl GRUB 2.14 in Debian Sid die module niet meer levert. Zonder override
@@ -133,6 +134,45 @@ tests/test-uefi.sh --iso path.iso   # andere ISO testen
 tests/test-uefi.sh --timeout 600    # langere timeout
 tests/test-uefi.sh --keep           # testmap bewaren
 ```
+
+## Installatietests (fase 1)
+
+```sh
+tests/test-install-uefi.sh
+tests/test-install-bios.sh
+```
+
+Deze tests doen twee runs:
+
+1. De live-ISO start in een lege VM met het SMBIOS-kenmerk
+   `LINUXBEOS-AUTOINSTALL`. De live-sessie start Calamares automatisch met
+   `/etc/calamares-auto` en installeert op de lege schijf.
+2. Dezelfde schijf wordt zonder ISO opnieuw gestart. De test wacht op
+   `LINUXBEOS_INSTALLED_READY` en op de Xfce-sessiemarkering van de
+   automatisch aangemaakte gebruiker.
+
+Artefacten staan onder `tests/vm/install-<mode>/`:
+
+| Bestand | Inhoud |
+|---|---|
+| `disk.qcow2` | de geïnstalleerde schijf (20 GiB) |
+| `install-serial.log` | console van de installatiefase |
+| `boot-serial.log` | console van de zelfstandige boot |
+| `installed-system.png` | screenshot van het geïnstalleerde systeem |
+| `install-result.txt`, `boot-result.txt` | resultaat per fase |
+
+Opties:
+
+```sh
+tests/test-install-uefi.sh --keep             # schijf en logs bewaren
+tests/test-install-uefi.sh --install-timeout 2400
+tests/test-install-uefi.sh --boot-timeout 900
+tests/test-install-uefi.sh --iso path.iso
+```
+
+De test faalt voortaan binnen enkele minuten als de autoinstall-hulp niet
+start; het wachten op de eigenlijke installatie heeft een ruime maar
+begrensde timeout.
 
 ## Handmatige controle
 

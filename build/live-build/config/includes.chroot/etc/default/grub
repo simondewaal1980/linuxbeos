@@ -1,0 +1,9 @@
+# Standaard GRUB-configuratie voor het geïnstalleerde systeem.
+# Calamares (grubcfg) vult deze aan. De seriële console is nodig voor de
+# geautomatiseerde boottest en is bruikbaar als noodconsole.
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR="LinuxBeOS"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet console=ttyS0,115200"
+GRUB_CMDLINE_LINUX=""
+GRUB_DISABLE_OS_PROBER=false

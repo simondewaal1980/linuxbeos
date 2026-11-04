@@ -1,7 +1,8 @@
 #!/bin/sh
 # Schrijft een herkenbare regel naar de seriële console zodra de Xfce-sessie
 # draait en NetworkManager verbinding heeft. De rooktesten in tests/ lezen
-# deze regel; het is tegelijk nuttige diagnostiek voor live-boots.
+# deze regel; het is tegelijk nuttige diagnostiek voor live-boots en voor het
+# geïnstalleerde systeem.
 set -eu
 
 i=0
@@ -14,5 +15,12 @@ while [ "$i" -lt 60 ]; do
 done
 
 logger -t linuxbeos-session "Xfce-sessie gereed, netwerk=$state" 2>/dev/null || true
-printf 'LINUXBEOS_SMOKE session=xfce network=%s\n' "$state" \
-  | sudo tee /dev/ttyS0 >/dev/null 2>&1 || true
+
+LINE=$(printf 'LINUXBEOS_SMOKE session=xfce network=%s' "$state")
+
+# In de live-sessie is sudo wachtwoordloos. Op het geïnstalleerde systeem
+# heeft de gebruiker via Calamares de groep tty, zodat direct schrijven naar
+# de seriële console ook werkt.
+if ! printf '%s\n' "$LINE" | tee /dev/ttyS0 >/dev/null 2>&1; then
+  printf '%s\n' "$LINE" | sudo -n tee /dev/ttyS0 >/dev/null 2>&1 || true
+fi

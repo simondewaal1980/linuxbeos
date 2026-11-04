@@ -127,6 +127,33 @@ tests/test-uefi.sh --timeout 900
 Zonder KVM valt de test terug op TCG; dat is erg traag. Zorg dat
 `/dev/kvm` toegankelijk is.
 
+### Installatietest stopt zonder `LINUXBEOS_AUTOINSTALL start`
+
+De autoinstall-hulp draait alleen als:
+
+- de live-omgeving actief is (`/run/live` bestaat);
+- het SMBIOS-seriënnummer `LINUXBEOS-AUTOINSTALL` is (alleen leesbaar met
+  sudo);
+- de Xfce-sessie en `DISPLAY` beschikbaar zijn.
+
+Bekijk `tests/vm/install-<mode>/install-serial.log` en
+`/tmp/linuxbeos-autoinstall.log` in de live-sessie. De test faalt bewust
+binnen ongeveer vijf minuten als de startmarkering ontbreekt; wachten op
+`done` heeft dan geen zin.
+
+### Calamares start wel maar de installatie blijft hangen
+
+Controleer in het seriële log of de markering
+`LINUXBEOS_AUTOINSTALL installing` verschijnt. Blijft die uit, dan is de
+Xdotool-besturing niet door de pagina's gekomen. Start de test met `--keep`
+en bekijk `install-failed.png`. Controleer ook of `xdotool` en
+`x11-xserver-utils` in de ISO zitten.
+
+Als Calamares een foutdialoog toont, blijft het proces wachten tot de
+timeout. De laatste regels van het seriële log bevatten meestal de
+Calamares-foutmelding; het volledige Calamares-log staat in de live-sessie
+onder `/root/.cache/Calamares/` (of in het debugvenster).
+
 ## Veiligheid
 
 Alle scripts werken uitsluitend met qcow2-bestanden. Er worden nooit fysieke

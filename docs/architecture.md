@@ -79,6 +79,27 @@ Het GRUB-menu wordt overschreven via
 meer; bovendien zet het standaardsjabloon geen timeout, waardoor het menu
 oneindig blijft wachten.
 
+## Calamares (fase 1)
+
+De installer-configuratie staat onder `installer/calamares/`. Tijdens de
+build kopieert `scripts/11-build-iso-in-vm.sh` die naar:
+
+- `/etc/calamares` — productieconfiguratie;
+- `/etc/calamares-auto` — dezelfde configuratie met voorgeselecteerde
+  partitie- en gebruikerskeuzes voor de geautomatiseerde VM-test.
+
+Calamares wordt als root gestart via `/usr/local/bin/linuxbeos-installer`
+(met `sudo`) of automatisch via `/usr/local/bin/linuxbeos-autoinstall`
+wanneer de VM het SMBIOS-seriënnummer `LINUXBEOS-AUTOINSTALL` heeft.
+De productieketen installeert op ext4 en verwijdert daarna Calamares en de
+live-pakketten uit het doel. Zie [calamares.md](calamares.md) voor details.
+
+Het geïnstalleerde systeem schrijft bij het bereiken van `graphical.target`
+een marker via `linuxbeos-installed-ready.service`; de gewone Xfce-sessie
+schrijft de bestaande `LINUXBEOS_SMOKE`-regel. Daarmee test
+`tests/lib/run-install-test.sh` zowel de installatie als de zelfstandige
+boot van het doel systeem.
+
 ## Rooktesten
 
 `tests/test-uefi.sh` en `tests/test-bios.sh` starten de ISO met een lege

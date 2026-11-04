@@ -6,10 +6,12 @@ echo "LinuxBeOS: services inschakelen"
 systemctl enable NetworkManager.service
 systemctl enable NetworkManager-wait-online.service
 systemctl enable lightdm.service
+systemctl enable linuxbeos-installed-ready.service
 systemctl set-default graphical.target
 
 # De live-gebruiker moet zonder wachtwoord kunnen beheren (gebruikelijk in
-# live-sessies) en heeft dit ook nodig voor de sessie-rookmarkering.
+# live-sessies). Dat is nodig voor de installer, de sessie-rookmarkering en
+# de geautomatiseerde installatietest.
 printf '%s\n' "${LIVE_USER:-live} ALL=(ALL) NOPASSWD: ALL" \
   > /etc/sudoers.d/010-live-nopasswd
 chmod 0440 /etc/sudoers.d/010-live-nopasswd

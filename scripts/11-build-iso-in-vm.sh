@@ -86,7 +86,27 @@ chmod +x "$WORKDIR/auto/config"
 if [[ -d "$WORKDIR/config/hooks/live" ]]; then
   find "$WORKDIR/config/hooks/live" -type f -exec chmod +x {} +
 fi
-chmod +x "$WORKDIR/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" 2>/dev/null || true
+
+step "Calamares-configuratie klaarzetten"
+# De installer-configuratie staat één keer in installer/calamares en wordt
+# hier in de live-build-includes geplaatst. Zo blijft er één bron van
+# waarheid en kan een schone checkout altijd dezelfde ISO bouwen.
+CALAMARES_SRC="$PROJECT_ROOT/installer/calamares"
+CALAMARES_DEST="$WORKDIR/config/includes.chroot/etc/calamares"
+CALAMARES_AUTO_DEST="$WORKDIR/config/includes.chroot/etc/calamares-auto"
+[[ -f "$CALAMARES_SRC/settings.conf" ]] || die "installer/calamares/settings.conf ontbreekt"
+
+rm -rf "$CALAMARES_DEST" "$CALAMARES_AUTO_DEST"
+mkdir -p "$CALAMARES_DEST" "$CALAMARES_AUTO_DEST"
+cp -a "$CALAMARES_SRC/." "$CALAMARES_DEST/"
+# De testvariant hoort niet als submap in de productieconfiguratie.
+rm -rf "$CALAMARES_DEST/auto"
+cp -a "$CALAMARES_DEST/." "$CALAMARES_AUTO_DEST/"
+cp -a "$CALAMARES_SRC/auto/." "$CALAMARES_AUTO_DEST/"
+
+# Live-hulpjes en launchers moeten uitvoerbaar zijn.
+find "$WORKDIR/config/includes.chroot/usr/local/bin" -type f -exec chmod 0755 {} + 2>/dev/null || true
+find "$WORKDIR/config/includes.chroot/etc/skel/Desktop" -type f -name '*.desktop' -exec chmod 0755 {} + 2>/dev/null || true
 
 export DEBIAN_FRONTEND=noninteractive
 export LC_ALL=C

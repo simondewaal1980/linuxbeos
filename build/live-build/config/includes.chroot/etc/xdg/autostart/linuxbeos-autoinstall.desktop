@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LinuxBeOS auto-install (test)
+Comment=Automatische installatie voor de VM-testmatrix
+Exec=/usr/local/bin/linuxbeos-autoinstall
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

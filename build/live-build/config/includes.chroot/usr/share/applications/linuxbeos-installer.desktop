@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Install LinuxBeOS
+Name[nl]=LinuxBeOS installeren
+Comment=Installeer LinuxBeOS op deze computer
+Comment[nl]=Installeer LinuxBeOS op deze computer
+Exec=/usr/local/bin/linuxbeos-installer
+Icon=calamares
+Terminal=false
+Categories=System;
+Keywords=install;installer;setup;

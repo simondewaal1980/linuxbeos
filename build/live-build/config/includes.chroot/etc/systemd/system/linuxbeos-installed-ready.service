@@ -1,0 +1,13 @@
+[Unit]
+Description=LinuxBeOS installed-system ready marker
+ConditionPathExists=!/run/live
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/linuxbeos-installed-ready
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

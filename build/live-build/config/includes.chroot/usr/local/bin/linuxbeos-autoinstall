@@ -1,0 +1,128 @@
+#!/bin/sh
+# Geautomatiseerde installatietest voor de LinuxBeOS-ISO.
+#
+# Deze hulp is alleen actief in de live-omgeving én als de VM het
+# SMBIOS-seriënnummer LINUXBEOS-AUTOINSTALL heeft. De testscripts in tests/
+# starten QEMU met dat kenmerk. In een normale live-sessie of op een
+# geïnstalleerd systeem doet dit script niets.
+set -u
+
+LOGFILE=/tmp/linuxbeos-autoinstall.log
+exec >"$LOGFILE" 2>&1
+
+say() {
+  printf '%s\n' "$*"
+}
+
+marker() {
+  printf 'LINUXBEOS_AUTOINSTALL %s\n' "$*" \
+    | sudo tee /dev/ttyS0 >/dev/null 2>&1 || true
+}
+
+finish() {
+  sync
+  sudo poweroff -f >/dev/null 2>&1 || true
+}
+
+# Alleen in de live-omgeving draaien.
+[ -d /run/live ] || exit 0
+
+# Het DMI-seriënnummer is alleen voor root leesbaar; de live-gebruiker heeft
+# wachtwoordloos sudo.
+SERIAL="$(sudo -n cat /sys/class/dmi/id/product_serial 2>/dev/null || true)"
+[ "$SERIAL" = "LINUXBEOS-AUTOINSTALL" ] || exit 0
+
+marker "start"
+
+# Wacht tot de Xfce-sessie en de display beschikbaar zijn.
+i=0
+while [ -z "${DISPLAY:-}" ] && [ "$i" -lt 60 ]; do
+  sleep 1
+  i=$((i + 1))
+done
+if [ -z "${DISPLAY:-}" ]; then
+  marker "failed no-display"
+  finish
+  exit 1
+fi
+
+# De installer draait als root; geef root toegang tot de X-sessie.
+xhost +SI:localuser:root >/dev/null 2>&1 || true
+
+# Start Calamares met de testconfiguratie. De configuratie is een volledige
+# kopie van /etc/calamares met voorgeselecteerde partitie- en gebruikerskeuzes.
+sudo env DISPLAY="$DISPLAY" XAUTHORITY="${XAUTHORITY:-}" \
+  QT_QPA_PLATFORM=xcb \
+  /usr/bin/calamares -d -c /etc/calamares-auto &
+CPID=$!
+
+# Wacht tot het Calamares-venster bestaat.
+wid=""
+i=0
+while [ "$i" -lt 180 ]; do
+  kill -0 "$CPID" 2>/dev/null || break
+  wid="$(xdotool search --onlyvisible --class calamares 2>/dev/null | head -n 1 || true)"
+  [ -n "$wid" ] || wid="$(xdotool search --onlyvisible --name 'Calamares' 2>/dev/null | head -n 1 || true)"
+  [ -n "$wid" ] && break
+  sleep 1
+  i=$((i + 1))
+done
+
+if [ -z "$wid" ]; then
+  marker "failed no-window"
+  # Schrijf de laatste Calamares-regels naar de seriële console zodat een
+  # mislukte start zonder aparte log-inspectie te diagnosticeren is.
+  tail -n 30 "$LOGFILE" 2>/dev/null | while IFS= read -r line; do
+    printf 'LINUXBEOS_AUTOINSTALL log: %s\n' "$line" | sudo tee /dev/ttyS0 >/dev/null 2>&1 || true
+  done
+  kill "$CPID" 2>/dev/null || true
+  finish
+  exit 1
+fi
+
+marker "window"
+xdotool windowactivate --sync "$wid" >/dev/null 2>&1 || true
+xdotool windowfocus --sync "$wid" >/dev/null 2>&1 || true
+sleep 5
+
+# Doorloop de pagina's met de toetsenbord-mnemonic van de Next-knop.
+# De partitiepagina heeft met initialPartitioningChoice=erase al een
+# schijfindeling klaargezet; de gebruikerspagina is via presets gevuld.
+i=0
+while [ "$i" -lt 12 ]; do
+  xdotool key --clearmodifiers alt+n >/dev/null 2>&1 || true
+  sleep 3
+  i=$((i + 1))
+done
+
+# Op de samenvattingspagina heet de knop Install (&Install).
+xdotool key --clearmodifiers alt+i >/dev/null 2>&1 || true
+marker "installing"
+
+# Wacht op het einde van Calamares (maximaal 40 minuten).
+i=0
+while kill -0 "$CPID" 2>/dev/null && [ "$i" -lt 2400 ]; do
+  sleep 2
+  i=$((i + 2))
+done
+
+if kill -0 "$CPID" 2>/dev/null; then
+  marker "failed timeout"
+  kill "$CPID" 2>/dev/null || true
+  finish
+  exit 1
+fi
+
+set +e
+wait "$CPID"
+rc=$?
+set -e
+
+if [ "$rc" -eq 0 ]; then
+  marker "done"
+else
+  marker "failed rc=$rc"
+fi
+
+finish
+[ "$rc" -eq 0 ]
