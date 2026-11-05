@@ -99,6 +99,7 @@ doordat de live-build-pakketcache bewaard blijft.
 | `build/live-build/config/hooks/live/` | chroot-hooks (services, sudo) |
 | `build/live-build/config/includes.chroot/` | bestanden in de live-ISO |
 | `installer/calamares/` | Calamares-configuratie; de build kopieert die naar `/etc/calamares` en `/etc/calamares-auto` |
+| `btrfs/` | Snapper-config, GRUB-snapshotgenerator, rollback- en testscripts; de build kopieert die naar de ISO |
 
 De GRUB-override is nodig omdat live-build 20250814 `insmod efi_uga` doet,
 terwijl GRUB 2.14 in Debian Sid die module niet meer levert. Zonder override
@@ -135,21 +136,31 @@ tests/test-uefi.sh --timeout 600    # langere timeout
 tests/test-uefi.sh --keep           # testmap bewaren
 ```
 
-## Installatietests (fase 1)
+## Installatietests (fase 2)
 
 ```sh
 tests/test-install-uefi.sh
 tests/test-install-bios.sh
 ```
 
-Deze tests doen twee runs:
+Deze tests doen nu vier stappen binnen dezelfde QEMU-sessie:
 
 1. De live-ISO start in een lege VM met het SMBIOS-kenmerk
    `LINUXBEOS-AUTOINSTALL`. De live-sessie start Calamares automatisch met
-   `/etc/calamares-auto` en installeert op de lege schijf.
+   `/etc/calamares-auto` en installeert op Btrfs (inclusief `@swap`).
 2. Dezelfde schijf wordt zonder ISO opnieuw gestart. De test wacht op
-   `LINUXBEOS_INSTALLED_READY` en op de Xfce-sessiemarkering van de
-   automatisch aangemaakte gebruiker.
+   `LINUXBEOS_INSTALLED_READY` en op de Btrfs-layoutcontrole.
+3. De testhulp maakt een Snapper-snapshot, controleert de GRUB-entry, breekt
+   een testmarker en herstart vanaf de snapshot (read-only).
+4. Na de rollback start het systeem weer van `@`; de test controleert dat de
+   marker hersteld is, `/home` behouden is en de Xfce-sessie met netwerk
+   werkt.
+
+De verwachte eindmarkering is:
+
+```
+LINUXBEOS_BTRFS_TEST done
+```
 
 Artefacten staan onder `tests/vm/install-<mode>/`:
 
@@ -157,16 +168,16 @@ Artefacten staan onder `tests/vm/install-<mode>/`:
 |---|---|
 | `disk.qcow2` | de geïnstalleerde schijf (20 GiB) |
 | `install-serial.log` | console van de installatiefase |
-| `boot-serial.log` | console van de zelfstandige boot |
-| `installed-system.png` | screenshot van het geïnstalleerde systeem |
-| `install-result.txt`, `boot-result.txt` | resultaat per fase |
+| `boot-serial.log` | console van alle drie de doel-boots |
+| `installed-system.png` | screenshot van het teruggezette systeem |
+| `install-result.txt`, `boot-result.txt` | resultaat per fase, inclusief Btrfs-markeringen |
 
 Opties:
 
 ```sh
 tests/test-install-uefi.sh --keep             # schijf en logs bewaren
 tests/test-install-uefi.sh --install-timeout 2400
-tests/test-install-uefi.sh --boot-timeout 900
+tests/test-install-uefi.sh --boot-timeout 1800
 tests/test-install-uefi.sh --iso path.iso
 ```
 

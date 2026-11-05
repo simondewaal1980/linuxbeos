@@ -1,0 +1,32 @@
+#!/bin/bash
+# linuxbeos-update-grub — werk het GRUB-menu bij met de actuele
+# Btrfs-snapshots. Wordt bij elke boot en door de grub-btrfs.path-unit
+# aangeroepen; ook handig na een handmatige snapshot.
+set -euo pipefail
+
+[ -r /etc/linuxbeos/btrfs.conf ] || exit 0
+# shellcheck source=/dev/null
+. /etc/linuxbeos/btrfs.conf
+
+SNAP_MOUNT="${BTRFS_SNAPSHOTS_MOUNT:-/.snapshots}"
+[ -d "$SNAP_MOUNT" ] || exit 0
+[ "$(findmnt -no FSTYPE / 2>/dev/null || true)" = "btrfs" ] || exit 0
+
+# Niet schrijven als we van een read-only snapshot zijn gestart: dat is
+# precies het scenario waarin de rollbackprocedure draait.
+if findmnt -no OPTIONS / 2>/dev/null | grep -qE '(^|,)ro(,|$)'; then
+  exit 0
+fi
+
+mkdir -p /run/lock /var/log
+exec 9>/run/lock/linuxbeos-update-grub.lock
+# Wacht op een eventueel al lopende grub-mkconfig (bijv. vanuit de
+# grub-btrfs.path-unit) in plaats van die run over te slaan.
+flock -w 120 9 || exit 0
+
+if grub-mkconfig -o /boot/grub/grub.cfg >/var/log/linuxbeos-update-grub.log 2>&1; then
+  logger -t linuxbeos "GRUB-menu bijgewerkt met Btrfs-snapshots" 2>/dev/null || true
+else
+  logger -t linuxbeos "grub-mkconfig mislukt; zie /var/log/linuxbeos-update-grub.log" 2>/dev/null || true
+  exit 1
+fi

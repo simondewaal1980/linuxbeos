@@ -1,0 +1,86 @@
+#!/bin/bash
+# 41_snapshots-btrfs — zet Btrfs-snapshots in het GRUB-menu.
+#
+# Dit is een kleine, op de LinuxBeOS-layout toegespitste vervanger van
+# grub-btrfs (dat in Debian Sid niet als pakket bestaat). Het script wordt
+# door grub-mkconfig uitgevoerd en leest de Snapper-snapshots uit
+# /.snapshots. Elke snapshot krijgt een eigen menu-entry die read-only vanaf
+# de snapshot-subvolume boot.
+#
+# De snapshot-subvolume staat bij LinuxBeOS op /@snapshots en is dus een
+# zustervolume van /@. In GRUB (dat de Btrfs-top-level ziet) is het pad naar
+# een snapshot daarom /@snapshots/<nummer>/snapshot, niet
+# /@/.snapshots/<nummer>/snapshot.
+
+set -eu
+
+[ -r /etc/linuxbeos/btrfs.conf ] || exit 0
+# shellcheck source=/dev/null
+. /etc/linuxbeos/btrfs.conf
+
+SNAP_MOUNT="${BTRFS_SNAPSHOTS_MOUNT:-/.snapshots}"
+[ -d "$SNAP_MOUNT" ] || exit 0
+
+# Bepaal eerst of er überhaupt snapshots zijn. Tijdens de installatie is dat
+# niet zo; dan hoeft er geen root-detectie plaats te vinden (die werkt in de
+# Calamares-chroot niet betrouwbaar).
+have_snapshot=0
+for d in "$SNAP_MOUNT"/[0-9]*; do
+  [ -d "$d/snapshot" ] && { have_snapshot=1; break; }
+done
+[ "$have_snapshot" -eq 1 ] || exit 0
+
+# Snapshot-entries werken alleen als /boot in de root-subvolume zit. Bij een
+# aparte /boot-partitie zouden kernel en initrd op een andere plaats staan.
+# findmnt --target geeft de mountpoint die /boot bevat (dat is "/" als /boot
+# gewoon een map in de root-subvolume is).
+[ "$(findmnt -no TARGET --target /boot 2>/dev/null || true)" = "/" ] || exit 0
+
+[ "$(findmnt -no FSTYPE / 2>/dev/null || true)" = "btrfs" ] || exit 0
+ROOT_SOURCE="$(findmnt -no SOURCE / 2>/dev/null || true)"
+ROOT_UUID="$(findmnt -no UUID / 2>/dev/null || true)"
+[ -n "$ROOT_UUID" ] || ROOT_UUID="$(blkid -s UUID -o value "$ROOT_SOURCE" 2>/dev/null || true)"
+[ -n "$ROOT_UUID" ] || exit 0
+
+# Haal het top-level pad van /@snapshots uit de mountopties. Valt terug op de
+# waarde uit /etc/linuxbeos/btrfs.conf.
+SNAP_OPTIONS="$(findmnt -no OPTIONS "$SNAP_MOUNT" 2>/dev/null || true)"
+SNAP_SUBVOL="$(printf '%s' "$SNAP_OPTIONS" | tr ',' '\n' | sed -n 's/^subvol=//p' | head -n 1)"
+[ -n "$SNAP_SUBVOL" ] || SNAP_SUBVOL="${BTRFS_SNAPSHOTS_SUBVOL:-/@snapshots}"
+SNAP_SUBVOL="${SNAP_SUBVOL%/}"
+case "$SNAP_SUBVOL" in
+  /*) : ;;
+  *) SNAP_SUBVOL="/$SNAP_SUBVOL" ;;
+esac
+
+for SNAPDIR in "$SNAP_MOUNT"/[0-9]*; do
+  [ -d "$SNAPDIR/snapshot" ] || continue
+  NUM="$(basename "$SNAPDIR")"
+
+  KERNEL="$(ls -1 "$SNAPDIR"/snapshot/boot/vmlinuz-* 2>/dev/null | sort -V | tail -n 1 || true)"
+  [ -n "$KERNEL" ] || continue
+  INITRD="$(ls -1 "$SNAPDIR"/snapshot/boot/initrd.img-* 2>/dev/null | sort -V | tail -n 1 || true)"
+
+  DESCRIPTION="$(sed -n 's:.*<description>\(.*\)</description>.*:\1:p' "$SNAPDIR/info.xml" 2>/dev/null | head -n 1 || true)"
+  [ -n "$DESCRIPTION" ] || DESCRIPTION="snapshot $NUM"
+  # GRUB-titels staan tussen dubbele aanhalingstekens; verwijder tekens die
+  # de titel of de variabele-expansie kunnen breken en beperk de lengte.
+  DESCRIPTION="$(printf '%s' "$DESCRIPTION" | tr '\n' ' ' | tr -d '"`$\\' | cut -c1-80)"
+
+  SNAPSHOT_PATH="$SNAP_SUBVOL/$NUM/snapshot"
+  KERNEL_NAME="$(basename "$KERNEL")"
+
+  printf 'menuentry "LinuxBeOS snapshot %s - %s" --id "linuxbeos-snapshot-%s" --class linuxbeos --class gnu-linux --class os {\n' \
+    "$NUM" "$DESCRIPTION" "$NUM"
+  printf '\tinsmod btrfs\n'
+  printf '\tinsmod part_gpt\n'
+  printf '\tinsmod part_msdos\n'
+  printf '\tsearch --no-floppy --fs-uuid --set=root %s\n' "$ROOT_UUID"
+  printf '\techo "LinuxBeOS: snapshot %s (%s) read-only starten"\n' "$NUM" "$DESCRIPTION"
+  printf '\tlinux %s/boot/%s root=UUID=%s rootfstype=btrfs rootflags=subvol=%s ro console=tty0 console=ttyS0,115200\n' \
+    "$SNAPSHOT_PATH" "$KERNEL_NAME" "$ROOT_UUID" "$SNAPSHOT_PATH"
+  if [ -n "$INITRD" ]; then
+    printf '\tinitrd %s/boot/%s\n' "$SNAPSHOT_PATH" "$(basename "$INITRD")"
+  fi
+  printf '}\n\n'
+done

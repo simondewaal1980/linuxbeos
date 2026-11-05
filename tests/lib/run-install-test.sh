@@ -23,7 +23,7 @@ shift
 
 ISO="$DIST_DIR/$ISO_NAME"
 INSTALL_TIMEOUT=1800
-BOOT_TIMEOUT=600
+BOOT_TIMEOUT=1800
 MEMORY=4096
 CPUS=4
 KEEP=0
@@ -36,8 +36,8 @@ Test een volledige Calamares-installatie op een lege qcow2-schijf en de
 daaropvolgende zelfstandige boot van het geïnstalleerde systeem.
 
   --iso PATH           Te testen ISO (standaard: dist/$ISO_NAME)
-  --install-timeout N  Timeout voor de installatiefase (standaard 2700 s)
-  --boot-timeout N     Timeout voor de boot van het doel systeem (standaard 600 s)
+  --install-timeout N  Timeout voor de installatiefase (standaard 1800 s)
+  --boot-timeout N     Timeout voor de boot/rollback-test van het doel systeem (standaard 1800 s)
   --memory MB          Geheugen voor de test-VM (standaard 4096)
   --cpus N             vCPU's voor de test-VM (standaard 4)
   --keep               Bewaar de testmap (schijf, OVMF-vars, logs, screenshot)
@@ -148,8 +148,7 @@ common_args() {
     -device virtio-net-pci,netdev=net0 \
     -device virtio-rng-pci \
     -smbios "type=1,serial=LINUXBEOS-AUTOINSTALL" \
-    -display none \
-    -no-reboot
+    -display none
 }
 
 readarray -d '' FIRMWARE_ARGS < <(firmware_args)
@@ -275,29 +274,52 @@ step "Geïnstalleerd systeem starten ($MODE)"
 rm -f "$MONITOR"
 start_qemu "$BOOT_SERIAL" -boot "order=c,menu=on"
 
+# De Btrfs-test doorloopt drie boots: snapshot maken, vanaf de snapshot
+# booten en daarna de rollback verifiëren. QEMU blijft tijdens die
+# herstarts draaien, dus alle markeringen komen in hetzelfde log terecht.
+step "Btrfs-snapshot en rollback testen ($MODE)"
 set +e
-wait_for_marker "$BOOT_SERIAL" "LINUXBEOS_INSTALLED_READY" "$BOOT_TIMEOUT" "$QEMU_PID"
-boot_status=$?
+wait_for_marker "$BOOT_SERIAL" "LINUXBEOS_BTRFS_TEST done" "$BOOT_TIMEOUT" "$QEMU_PID"
+btrfs_status=$?
 set -e
 
-if (( boot_status != 0 )); then
+if (( btrfs_status != 0 )); then
   screenshot "$WORK/boot-failed.png" || true
   {
     printf 'mode=%s\n' "$MODE"
     printf 'resultaat=mislukt\n'
-    printf 'fase=boot\n'
-    printf 'status=%s\n' "$boot_status"
+    printf 'fase=btrfs-rollback\n'
+    printf 'status=%s\n' "$btrfs_status"
   } > "$BOOT_RESULT"
-  warn "laatste 80 regels uit het bootlog:"
-  tail -n 80 "$BOOT_SERIAL" >&2 || true
-  die "geïnstalleerd systeem ($MODE) start niet; volledig log: $BOOT_SERIAL"
+  if grep -aq 'LINUXBEOS_BTRFS_TEST skipped' "$BOOT_SERIAL" 2>/dev/null; then
+    warn "Btrfs-test overgeslagen: $(grep -a 'LINUXBEOS_BTRFS_TEST skipped' "$BOOT_SERIAL" | tail -1)"
+  fi
+  if grep -aq 'LINUXBEOS_BTRFS_TEST failed' "$BOOT_SERIAL" 2>/dev/null; then
+    warn "Btrfs-test mislukt: $(grep -a 'LINUXBEOS_BTRFS_TEST failed' "$BOOT_SERIAL" | tail -1)"
+  fi
+  warn "laatste 120 regels uit het bootlog:"
+  tail -n 120 "$BOOT_SERIAL" >&2 || true
+  die "Btrfs/snapshot/rollback-test ($MODE) mislukt; volledig log: $BOOT_SERIAL"
 fi
 
-# De Xfce-sessie bewijst dat de aangemaakte gebruiker automatisch inlogt.
+# Op de laatste boot moeten ook de gewone installed-ready- en Xfce-markers
+# aanwezig zijn. De Btrfs-hulp wacht zelf op de Xfce-sessie voordat hij
+# "done" schrijft; deze controles zijn de expliciete bevestiging.
 set +e
-wait_for_marker "$BOOT_SERIAL" "LINUXBEOS_SMOKE session=xfce" 180 "$QEMU_PID"
-smoke_status=$?
+wait_for_marker "$BOOT_SERIAL" "LINUXBEOS_INSTALLED_READY" 180 "$QEMU_PID"
+boot_status=$?
 set -e
+if (( boot_status != 0 )); then
+  screenshot "$WORK/boot-failed.png" || true
+  warn "laatste 80 regels uit het bootlog:"
+  tail -n 80 "$BOOT_SERIAL" >&2 || true
+  die "geïnstalleerd systeem ($MODE) meldt zich niet als gereed; volledig log: $BOOT_SERIAL"
+fi
+
+if ! grep -aq 'LINUXBEOS_SMOKE session=xfce' "$BOOT_SERIAL" 2>/dev/null; then
+  screenshot "$WORK/boot-failed.png" || true
+  die "Xfce-sessie in het geïnstalleerde systeem ($MODE) niet bevestigd"
+fi
 
 screenshot "$SCREENSHOT" || true
 
@@ -306,14 +328,15 @@ screenshot "$SCREENSHOT" || true
   printf 'resultaat=geslaagd\n'
   printf 'installed-ready=%s\n' "$(grep -a 'LINUXBEOS_INSTALLED_READY' "$BOOT_SERIAL" | tail -1)"
   printf 'smoke=%s\n' "$(grep -a 'LINUXBEOS_SMOKE' "$BOOT_SERIAL" | tail -1)"
+  printf 'btrfs-layout=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_LAYOUT' "$BOOT_SERIAL" | tail -1)"
+  printf 'snapshot=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_SNAPSHOT ok' "$BOOT_SERIAL" | tail -1)"
+  printf 'grub=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_GRUB' "$BOOT_SERIAL" | tail -1)"
+  printf 'snapshot-boot=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_SNAPSHOT_BOOT' "$BOOT_SERIAL" | tail -1)"
+  printf 'rollback=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_ROLLBACK ok' "$BOOT_SERIAL" | tail -1)"
 } > "$BOOT_RESULT"
-
-if (( smoke_status != 0 )); then
-  warn "systeem start, maar de Xfce-sessiemarkering ontbreekt; controleer het bootlog"
-  die "Xfce-sessie in het geïnstalleerde systeem ($MODE) niet bevestigd"
-fi
 
 ok "geïnstalleerd systeem start zelfstandig"
 ok "marker: $(grep -a 'LINUXBEOS_SMOKE' "$BOOT_SERIAL" | tail -1)"
+ok "btrfs:  $(grep -a 'LINUXBEOS_BTRFS_ROLLBACK ok' "$BOOT_SERIAL" | tail -1)"
 ok "log:    $BOOT_SERIAL"
 (( KEEP )) && ok "testmap bewaard: $WORK"

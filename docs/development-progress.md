@@ -1,6 +1,6 @@
 # Ontwikkelvoortgang LinuxBeOS
 
-Laatst bijgewerkt: 2026-11-04
+Laatst bijgewerkt: 2026-11-05
 
 ## Statuswaarden
 
@@ -18,7 +18,7 @@ Laatst bijgewerkt: 2026-11-04
 |---|---|---|
 | 0 | Live-build-pipeline + minimale XFCE-desktop | GEREED |
 | 1 | Calamares standaardinstallatie (ext4) | GEREED |
-| 2 | Btrfs + subvolumes + snapshots | TODO |
+| 2 | Btrfs + subvolumes + snapshots | GEREED |
 | 3 | BeOS 5-thema op XFCE | TODO |
 | 4 | Volledige integratie en releasegate | TODO |
 
@@ -134,6 +134,77 @@ volledig gerenderd is.
 - De installer draait als root via `sudo`; de live-gebruiker heeft daarvoor
   wachtwoordloos sudo.
 
+## Fase 2 — Btrfs + subvolumes + snapshots
+
+**Doel:** Btrfs als standaard, Snapper-snapshots, een GRUB-menu met
+snapshots en een bewezen rollback die `/home` intact laat.
+**Nog niet:** het BeOS-thema.
+
+### Checklist
+
+| # | Onderdeel | Status |
+|---|---|---|
+| 1 | Subvolume-indeling centraal in `config/project.conf` en `docs/btrfs-layout.md` | GEREED |
+| 2 | Calamares `mount`/`fstab`: `@`, `@home`, `@snapshots`, `@var_log`, `@var_cache`, `@swap`, `compress=zstd`, `noatime` | GEREED |
+| 3 | Swapfile in `@swap` (zonder CoW); zram-alternatief gedocumenteerd | GEREED |
+| 4 | Snapper: root-config, tijdlijn-snapshots, apt-hook, opruimregels | GEREED |
+| 5 | GRUB-menu met read-only snapshot-entries (eigen grub-btrfs-equivalent) | GEREED |
+| 6 | Automatische regeneratie bij boot en bij wijzigingen in `/.snapshots` | GEREED |
+| 7 | `linuxbeos-rollback` met procedure voor GRUB-snapshot en live-ISO | GEREED |
+| 8 | Geautomatiseerde driedelige test: snapshot, snapshot-boot, rollback | GEREED |
+| 9 | Bewijs dat `/home` na de rollback behouden is | GEREED |
+| 10 | Documentatie (`docs/btrfs-layout.md`, build-guide, troubleshooting) | GEREED |
+
+### Acceptatiecriteria
+
+- [x] Installatie draait op Btrfs met de juiste subvolumes; `btrfs subvolume list` komt overeen met de layout.
+- [x] Snapper-snapshot maken en rollback werkt aantoonbaar in de VM.
+- [x] Snapshots zijn bootbaar vanuit het GRUB-menu.
+- [x] `/home` blijft bij een rollback van `/` behouden.
+
+### Bewijs
+
+| Controle | UEFI | BIOS |
+|---|---|---|
+| Installatiemarker | `LINUXBEOS_AUTOINSTALL done` | `LINUXBEOS_AUTOINSTALL done` |
+| Btrfs-layout | `LINUXBEOS_BTRFS_LAYOUT ok subvolumes=@,@home,@snapshots,@var_log,@var_cache,@swap fstab=subvol,compress=zstd,noatime` | idem |
+| Snapshot aangemaakt | `LINUXBEOS_BTRFS_SNAPSHOT ok number=2` | idem |
+| Snapshot in GRUB | `LINUXBEOS_BTRFS_GRUB ok number=2` | idem |
+| Boot vanaf snapshot | `LINUXBEOS_BTRFS_SNAPSHOT_BOOT ok number=2 subvol=/@snapshots/2/snapshot` | idem |
+| Rollback + `/home` | `LINUXBEOS_BTRFS_ROLLBACK ok number=2 marker=original home=preserved` | idem |
+| Xfce na rollback | `LINUXBEOS_SMOKE session=xfce network=connected` | idem |
+| Screenshot | [phase2-installed-uefi.png](screenshots/phase2-installed-uefi.png) | [phase2-installed-bios.png](screenshots/phase2-installed-bios.png) |
+| Testmap | `tests/vm/install-uefi/` | `tests/vm/install-bios/` |
+
+| Buildgegeven | Waarde |
+|---|---|
+| ISO | `dist/linuxbeos-0.1-amd64.iso` |
+| SHA256 | `950c19a6749aeec1dfb97132990259783a1efea779383eaa161fc3e74944be75` |
+| Grootte | 1,5 GiB |
+| Kernel | `7.2.15+deb14-amd64` |
+| Calamares | 3.4.3 (Debian Sid) |
+| Bestandssysteem | Btrfs met `compress=zstd` en `noatime` |
+| Snapper | 0.10.6 (Debian Sid) |
+
+De test doorloopt drie boots: snapshot maken en GRUB instellen, vanaf de
+snapshot booten, en na de rollback controleren dat `@` terug is, de
+testmarker weer `original` is en `/home/testuser/rollback-preserve` nog
+bestaat. De snapshot is read-only; de rollback vervangt `@` en bewaart de
+oude root als `@.broken-<tijdstip>`.
+
+### Aandachtspunten
+
+- Debian-Snapper ontdekt configuraties niet automatisch. `SNAPPER_CONFIGS`
+  in `/etc/default/snapper` moet naar `root` wijzen; dat wordt tijdens de
+  build geregeld.
+- Debian Sid heeft geen `grub-btrfs`-pakket. De generator in
+  `btrfs/grub.d/41_snapshots-btrfs` is een kleine eigen equivalente
+  implementatie, geen third-party import.
+- Snapshot-boot is read-only en de generator ondersteunt alleen een `/boot`
+  die in de root-subvolume zit.
+- Het swapfile is 512 MiB (Calamares-standaard) en staat in `@swap`, dat
+  niet wordt gesnapshot.
+
 ## Beslissingen
 
 | Datum | Beslissing | Reden |
@@ -151,6 +222,12 @@ volledig gerenderd is.
 | 2026-11-04 | Fase 1 installeert alleen op **ext4**; LUKS en LVM uit | Btrfs en encryptie zijn nog niet getest; eerst de basisketen valideren. |
 | 2026-11-04 | Automatische installatietest via **SMBIOS-seriënnummer** + `xdotool` | Geen kernel-cmdline-aanpassing of GUI-handelingen op de host nodig; de live-sessie start Calamares zelf met `/etc/calamares-auto`. |
 | 2026-11-04 | Calamares verwijderen met de `packages`-module plus een `shellprocess`-opruimstap | Zo verdwijnen ook de live-autologin en testhulpjes uit het doelsysteem. |
+| 2026-11-05 | Btrfs als standaard met subvolumes `@`, `@home`, `@snapshots`, `@var_log`, `@var_cache`, `@swap` | Subvolumes scheiden systeem, gebruikersdata en snapshots; `/home` blijft bij een rollback intact. |
+| 2026-11-05 | Swapfile in `@swap` in plaats van zram | Calamares heeft ingebouwde ondersteuning (`btrfsSwapSubvol`), het is direct testbaar en `@swap` wordt niet gesnapshot. |
+| 2026-11-05 | Eigen generator `41_snapshots-btrfs` in plaats van het grub-btrfs-pakket | Debian Sid levert geen `grub-btrfs`; de eigen generator is klein, licentie-vrij van third-party code en toegespitst op de LinuxBeOS-layout. |
+| 2026-11-05 | `SNAPPER_CONFIGS="root"` in `/etc/default/snapper` | Debian-Snapper ontdekt configuraties niet automatisch; zonder deze regel bestaat de config voor snapperd niet. |
+| 2026-11-05 | `-no-reboot` uit de installatietest verwijderd | De Btrfs-test moet drie keer binnen dezelfde QEMU-sessie kunnen herstarten; de installatiefase beëindigt QEMU via `poweroff`. |
+| 2026-11-05 | Btrfs-testhulp alleen in de testvariant | De productie-opruiming verwijdert helper en dienst; de auto-cleanup laat ze staan zodat de driedelige test na de installatie kan draaien. |
 
 ## Aandachtspunten voor latere fasen
 
@@ -165,6 +242,13 @@ volledig gerenderd is.
    en wallpaper. Dat wordt in fase 3 vervangen door de BeOS-desktop.
 5. **Secure Boot:** de ISO is nu unsigned. Voor fase 4 kan `shim-signed` +
    `grub-efi-amd64-signed` worden toegevoegd; dat is nog niet getest.
+6. **Oude root opruimen:** na een rollback blijft `@.broken-<tijdstip>` staan.
+   Dat is bewust (veilig terugvallen) maar moet door de gebruiker of een
+   toekomstig opruimscript worden verwijderd.
+7. **Snapshotgenerator:** de eigen `41_snapshots-btrfs` ondersteunt geen
+   aparte `/boot`-partitie. Als die in een latere fase wordt toegevoegd,
+   moet de generator worden uitgebreid of alsnog grub-btrfs worden
+   geïmporteerd.
 
 ## Logboek
 
@@ -191,3 +275,14 @@ volledig gerenderd is.
 | 2026-11-04 | Sessiemarkering op het doel systeem vereiste groep `dialout` (niet `tty`); toegevoegd aan de standaardgroepen. |
 | 2026-11-04 | Installatiepictogram werd uit `/etc/skel` maar niet uit de al aangemaakte gebruikersmap verwijderd; opruimstap uitgebreid. |
 | 2026-11-04 | Screenshots van beide geïnstalleerde systemen toegevoegd aan `docs/screenshots/`. |
+| 2026-11-05 | Fase 2 gestart: Btrfs-subvolumes, Snapper, GRUB-snapshotmenu en rollbackscript toegevoegd. |
+| 2026-11-05 | Eerste Btrfs-teststop: Debian-Snapper herkende de configuratie niet; `SNAPPER_CONFIGS="root"` in `/etc/default/snapper` toegevoegd. |
+| 2026-11-05 | Tweede stop: `BTRFS_SUBVOLUMES` ontbrak in de gegenereerde runtimeconfig; toegevoegd en fallback in de testhulp ingebouwd. |
+| 2026-11-05 | Derde stop: GRUB-generator gebruikte `findmnt /boot` in plaats van `--target /boot`, waardoor er geen snapshot-entries werden gemaakt. |
+| 2026-11-05 | Vierde stop: rollbackscript zag `/dev/vda2[/@...]` als apparaat; subvolume-suffix wordt nu gestript. |
+| 2026-11-05 | Vijfde stop: `-no-reboot` liet QEMU na de eerste herstart stoppen; optie uit de testharness verwijderd. |
+| 2026-11-05 | UEFI-test geslaagd: snapshot, snapshot-boot, rollback en behoud van `/home` bewezen. |
+| 2026-11-05 | BIOS-test geslaagd: idem met SeaBIOS/MBR. |
+| 2026-11-05 | Screenshots van beide Btrfs-systemen toegevoegd als `phase2-installed-uefi.png` en `phase2-installed-bios.png`. |
+| 2026-11-05 | Productie-opruiming verwijdert de Btrfs-testhulp; de testvariant behoudt hem via een eigen cleanup-config. |
+| 2026-11-05 | Definitieve ISO gebouwd (`950c19a6…`) en beide installatie-/rollbacktests opnieuw geslaagd. |

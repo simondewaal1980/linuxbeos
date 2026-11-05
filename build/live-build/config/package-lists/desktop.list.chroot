@@ -29,7 +29,7 @@ wireplumber
 libspa-0.2-modules
 alsa-utils
 
-# Installer (fase 1)
+# Installer (fase 1/2)
 calamares
 python3
 qml6-module-qtquick
@@ -39,6 +39,8 @@ libxcb-cursor0
 squashfs-tools
 dosfstools
 e2fsprogs
+btrfs-progs
+snapper
 rsync
 os-prober
 efibootmgr

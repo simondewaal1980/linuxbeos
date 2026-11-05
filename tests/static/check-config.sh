@@ -32,13 +32,27 @@ required_files=(
   "installer/calamares/branding/linuxbeos/branding.desc"
   "installer/calamares/branding/linuxbeos/show.qml"
   "installer/calamares/modules/partition.conf"
+  "installer/calamares/modules/mount.conf"
+  "installer/calamares/modules/fstab.conf"
   "installer/calamares/modules/users.conf"
   "installer/calamares/modules/unpackfs.conf"
   "installer/calamares/modules/bootloader.conf"
   "installer/calamares/modules/packages.conf"
+  "installer/calamares/modules/services-systemd.conf"
   "installer/calamares/auto/settings.conf"
   "installer/calamares/auto/modules/partition.conf"
   "installer/calamares/auto/modules/users.conf"
+  "installer/calamares/auto/modules/services-systemd.conf"
+  "installer/calamares/auto/modules/shellprocess-target-cleanup.conf"
+  "btrfs/snapper/root"
+  "btrfs/snapper/default"
+  "btrfs/grub.d/41_snapshots-btrfs"
+  "btrfs/bin/linuxbeos-rollback"
+  "btrfs/bin/linuxbeos-update-grub"
+  "btrfs/bin/linuxbeos-btrfs-test"
+  "btrfs/systemd/grub-btrfs.service"
+  "btrfs/systemd/grub-btrfs.path"
+  "btrfs/systemd/linuxbeos-btrfs-test.service"
   "scripts/00-check-host.sh"
   "scripts/01-create-build-vm.sh"
   "scripts/10-build-iso.sh"
@@ -48,6 +62,7 @@ required_files=(
   "tests/test-install-uefi.sh"
   "tests/test-install-bios.sh"
   "docs/development-progress.md"
+  "docs/btrfs-layout.md"
 )
 for f in "${required_files[@]}"; do
   if [[ -f "$PROJECT_ROOT/$f" ]]; then
@@ -67,6 +82,10 @@ for f in \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installed-ready" \
   "build/live-build/config/includes.chroot/etc/skel/Desktop/install-linuxbeos.desktop" \
+  "btrfs/grub.d/41_snapshots-btrfs" \
+  "btrfs/bin/linuxbeos-rollback" \
+  "btrfs/bin/linuxbeos-update-grub" \
+  "btrfs/bin/linuxbeos-btrfs-test" \
   "scripts/00-check-host.sh" \
   "scripts/01-create-build-vm.sh" \
   "scripts/10-build-iso.sh" \
@@ -93,6 +112,15 @@ while IFS= read -r -d '' f; do
     fail "syntaxfout in ${f#"$PROJECT_ROOT/"}"
   fi
 done < <(find "$PROJECT_ROOT/scripts" "$PROJECT_ROOT/tests" -name '*.sh' -type f -print0)
+
+for f in "$PROJECT_ROOT"/btrfs/bin/* "$PROJECT_ROOT"/btrfs/grub.d/*; do
+  [[ -f "$f" ]] || continue
+  if bash -n "$f" 2>/dev/null; then
+    pass "bash -n ${f#"$PROJECT_ROOT/"}"
+  else
+    fail "syntaxfout in ${f#"$PROJECT_ROOT/"}"
+  fi
+done
 
 for f in \
   "build/live-build/auto/config" \
@@ -199,6 +227,114 @@ if grep -q 'CALAMARES_SRC' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh"; then
   pass "buildscript neemt installer/calamares op in de ISO"
 else
   fail "buildscript kopieert installer/calamares niet"
+fi
+
+step "Btrfs, Snapper en rollback"
+PART_PROD="$CAL/modules/partition.conf"
+PART_AUTO="$CAL/auto/modules/partition.conf"
+MOUNT_CONF="$CAL/modules/mount.conf"
+if grep -q 'defaultFileSystemType: "btrfs"' "$PART_PROD"; then
+  pass "productie installeert standaard op Btrfs"
+else
+  fail "productieconfiguratie gebruikt geen Btrfs als standaard"
+fi
+if grep -q 'defaultFileSystemType: "btrfs"' "$PART_AUTO"; then
+  pass "installatietest gebruikt Btrfs"
+else
+  fail "auto-installatietest gebruikt geen Btrfs"
+fi
+for subvol in "$BTRFS_ROOT_SUBVOL" "$BTRFS_HOME_SUBVOL" "$BTRFS_SNAPSHOTS_SUBVOL" \
+              "$BTRFS_VAR_LOG_SUBVOL" "$BTRFS_VAR_CACHE_SUBVOL"; do
+  if grep -qE "^[[:space:]]+subvolume: /${subvol}$" "$MOUNT_CONF"; then
+    pass "subvolume in mount.conf: /$subvol"
+  else
+    fail "subvolume ontbreekt in mount.conf: /$subvol"
+  fi
+done
+if grep -q "btrfsSwapSubvol: /${BTRFS_SWAP_SUBVOL}" "$MOUNT_CONF"; then
+  pass "swap-subvolume in mount.conf: /$BTRFS_SWAP_SUBVOL"
+else
+  fail "btrfsSwapSubvol ontbreekt in mount.conf"
+fi
+if grep -q 'compress=zstd' "$MOUNT_CONF" && grep -q 'noatime' "$MOUNT_CONF"; then
+  pass "Btrfs-mountopties bevatten compress=zstd en noatime"
+else
+  fail "Btrfs-mountopties ontbreken in mount.conf"
+fi
+if grep -qE '^mountOptions:' "$CAL/modules/fstab.conf"; then
+  fail "fstab.conf bevat mountOptions; die horen in mount.conf"
+else
+  pass "fstab.conf laat mountopties aan de mount-module"
+fi
+for pkg in btrfs-progs snapper; do
+  if grep -qxF "$pkg" "$PROJECT_ROOT/build/live-build/config/package-lists/desktop.list.chroot"; then
+    pass "pakket: $pkg"
+  else
+    fail "pakket ontbreekt in desktop.list.chroot: $pkg"
+  fi
+done
+SNAPPER_CONF="$PROJECT_ROOT/btrfs/snapper/root"
+if grep -qxF 'TIMELINE_CREATE="yes"' "$SNAPPER_CONF" \
+   && grep -qxF 'NUMBER_CLEANUP="yes"' "$SNAPPER_CONF"; then
+  pass "Snapper: tijdlijn en nummer-opruiming ingeschakeld"
+else
+  fail "Snapper-configuratie mist tijdlijn- of opruiminstellingen"
+fi
+if grep -qxF 'SNAPPER_CONFIGS="root"' "$PROJECT_ROOT/btrfs/snapper/default"; then
+  pass "Snapper-configuratie 'root' is actief in /etc/default/snapper"
+else
+  fail "SNAPPER_CONFIGS staat niet op root in /etc/default/snapper"
+fi
+if grep -q 'snapper-timeline.timer' "$CAL/modules/services-systemd.conf" \
+   && grep -q 'snapper-cleanup.timer' "$CAL/modules/services-systemd.conf" \
+   && grep -q 'grub-btrfs.path' "$CAL/modules/services-systemd.conf"; then
+  pass "Snapper-timers en grub-btrfs zijn ingeschakeld"
+else
+  fail "Snapper-timers of grub-btrfs ontbreken in services-systemd.conf"
+fi
+if grep -q 'linuxbeos-btrfs-test.service' "$CAL/auto/modules/services-systemd.conf"; then
+  pass "Btrfs-rollbacktest is in de testvariant ingeschakeld"
+else
+  fail "Btrfs-rollbacktest is niet ingeschakeld in de testvariant"
+fi
+if grep -q 'rm -f /usr/local/bin/linuxbeos-btrfs-test' "$CAL/modules/shellprocess-target-cleanup.conf" \
+   && ! grep -q 'rm -f /usr/local/bin/linuxbeos-btrfs-test' "$CAL/auto/modules/shellprocess-target-cleanup.conf"; then
+  pass "Btrfs-testhulp wordt alleen in de productie-opruiming verwijderd"
+else
+  fail "Btrfs-testhulp ontbreekt in de productie-opruiming of wordt in de testvariant verwijderd"
+fi
+if grep -q 'BTRFS_SRC' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q '41_snapshots-btrfs' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q 'BTRFS_SUBVOLUMES=' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh"; then
+  pass "buildscript neemt btrfs/-configuratie op in de ISO"
+else
+  fail "buildscript kopieert btrfs/ niet naar de ISO"
+fi
+if grep -q 'rootflags=subvol=' "$PROJECT_ROOT/btrfs/grub.d/41_snapshots-btrfs" \
+   && grep -q '\-\-id "linuxbeos-snapshot-' "$PROJECT_ROOT/btrfs/grub.d/41_snapshots-btrfs" \
+   && grep -q ' ro ' "$PROJECT_ROOT/btrfs/grub.d/41_snapshots-btrfs" \
+   && grep -q 'findmnt -no TARGET --target /boot' "$PROJECT_ROOT/btrfs/grub.d/41_snapshots-btrfs"; then
+  pass "GRUB-generator maakt read-only snapshot-entries met een vaste id"
+else
+  fail "GRUB-generator mist rootflags, id, read-only snapshot-entry of de /boot-controle"
+fi
+if grep -q -- '--device' "$PROJECT_ROOT/btrfs/bin/linuxbeos-rollback" \
+   && grep -q 'subvolid=5' "$PROJECT_ROOT/btrfs/bin/linuxbeos-rollback" \
+   && grep -q 'broken-' "$PROJECT_ROOT/btrfs/bin/linuxbeos-rollback" \
+   && grep -q 'findmnt -no SOURCE' "$PROJECT_ROOT/btrfs/bin/linuxbeos-rollback"; then
+  pass "rollbackscript kan vanaf snapshot/live-ISO en bewaart de oude root"
+else
+  fail "rollbackscript mist --device, subvolid=5, de oude-root-backup of apparaatdetectie"
+fi
+if grep -q 'LINUXBEOS_BTRFS_TEST done' "$PROJECT_ROOT/tests/lib/run-install-test.sh"; then
+  pass "installatietest wacht op de Btrfs-rollbackmarkering"
+else
+  fail "installatietest controleert de Btrfs-rollback niet"
+fi
+if grep -q 'Rollback' "$PROJECT_ROOT/docs/btrfs-layout.md"; then
+  pass "Btrfs-layoutdocumentatie beschrijft de rollback"
+else
+  fail "docs/btrfs-layout.md mist de rollbackprocedure"
 fi
 
 step "Live-sessie"

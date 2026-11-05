@@ -4,10 +4,12 @@ Een Linux-distributie met een BeOS 5-geïnspireerde desktop, gebouwd op
 Debian Sid. Dit is de werknaam; de definitieve naam kan later via
 `config/project.conf` worden gewijzigd.
 
-> **Status:** fase 0 en fase 1 zijn gereed. De ISO installeert via Calamares
-> op ext4 en het geïnstalleerde systeem boot zelfstandig op UEFI én BIOS.
+> **Status:** fase 0, 1 en 2 zijn gereed. De ISO installeert via Calamares op
+> Btrfs met subvolumes, Snapper-snapshots en een GRUB-menu met snapshots.
+> De geautomatiseerde test bewijst snapshot-boot en rollback op UEFI én BIOS.
 > Zie [docs/development-progress.md](docs/development-progress.md) en
-> [docs/calamares.md](docs/calamares.md). Volgende stap: fase 2 (Btrfs).
+> [docs/btrfs-layout.md](docs/btrfs-layout.md). Volgende stap: fase 3
+> (BeOS 5-thema).
 
 ## Uitgangspunten
 
@@ -40,7 +42,7 @@ scripts/10-build-iso.sh
 tests/test-uefi.sh
 tests/test-bios.sh
 
-# 5. Installatietests: Calamares + zelfstandige boot van het doel systeem
+# 5. Installatietests: Btrfs-installatie + snapshot/rollback op het doel
 tests/test-install-uefi.sh
 tests/test-install-bios.sh
 ```
@@ -75,13 +77,29 @@ Nog niet in fase 0: Calamares, Btrfs, Snapper en het BeOS-thema.
 - Een neutrale LinuxBeOS-branding met eigen logo en slideshow
 - De standaard keten partition → mount → unpackfs → fstab → locale →
   keyboard → users → bootloader → umount
-- Installatie op ext4 voor UEFI én BIOS
+- Installatie op ext4 in fase 1 (de keten werd eerst los van Btrfs
+  gevalideerd); sinds fase 2 is Btrfs de standaard
 - Verwijdering van Calamares en de live-pakketten uit het doelsysteem
 - Een geautomatiseerde acceptatietest die installeert en daarna het
   geïnstalleerde systeem zelfstandig laat booten
 
 Zie [docs/calamares.md](docs/calamares.md) voor de moduleketen en de
 testaanpak.
+
+## Wat fase 2 toevoegt
+
+- Btrfs als standaardbestandssysteem met subvolumes `@`, `@home`,
+  `@snapshots`, `@var_log`, `@var_cache` en `@swap`
+- `compress=zstd` en `noatime` op de systeem-subvolumes
+- Snapper met tijdlijn-snapshots, apt-hook en opruimbeleid
+- Een GRUB-menu met read-only snapshot-entries (eigen grub-btrfs-equivalent,
+  omdat Debian Sid geen grub-btrfs-pakket heeft)
+- `linuxbeos-rollback` om `/` terug te zetten zonder `/home` te verliezen
+- Een geautomatiseerde test die snapshot maken, snapshot-boot, rollback en
+  behoud van `/home` op UEFI én BIOS bewijst
+
+Zie [docs/btrfs-layout.md](docs/btrfs-layout.md) voor de indeling, de
+Snapper-configuratie en de rollbackprocedure.
 
 ## Repository-indeling
 
@@ -91,7 +109,7 @@ build/live-build/         live-build auto/config, pakketlijsten, hooks, includes
 overlays/                 bestanden over het live-systeem (latere fasen)
 desktop/                  thema-assets (fase 3)
 installer/calamares/      installer-configuratie (fase 1)
-btrfs/                    subvolume- en Snapper-configuratie (fase 2)
+btrfs/                    subvolumes, Snapper, GRUB-snapshots en rollback (fase 2)
 scripts/                  hostcontrole, build-VM, ISO-bouw
 tests/                    statische tests en QEMU-rooktesten
 docs/                     architectuur, buildhandleiding, voortgang

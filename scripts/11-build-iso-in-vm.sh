@@ -108,6 +108,50 @@ cp -a "$CALAMARES_SRC/auto/." "$CALAMARES_AUTO_DEST/"
 find "$WORKDIR/config/includes.chroot/usr/local/bin" -type f -exec chmod 0755 {} + 2>/dev/null || true
 find "$WORKDIR/config/includes.chroot/etc/skel/Desktop" -type f -name '*.desktop' -exec chmod 0755 {} + 2>/dev/null || true
 
+step "Btrfs-, Snapper- en rollbackconfiguratie klaarzetten"
+# De Btrfs-bestanden staan één keer in btrfs/ en worden hier in de
+# live-build-includes geplaatst. Ze komen daarmee zowel in de live-sessie als
+# via unpackfs in het doelsysteem terecht.
+BTRFS_SRC="$PROJECT_ROOT/btrfs"
+INCLUDES="$WORKDIR/config/includes.chroot"
+[[ -d "$BTRFS_SRC" ]] || die "btrfs/ ontbreekt"
+
+install -D -m 0644 "$BTRFS_SRC/snapper/root" \
+  "$INCLUDES/etc/snapper/configs/${SNAPPER_CONFIG}"
+install -D -m 0644 "$BTRFS_SRC/snapper/default" "$INCLUDES/etc/default/snapper"
+install -D -m 0755 "$BTRFS_SRC/grub.d/41_snapshots-btrfs" \
+  "$INCLUDES/etc/grub.d/41_snapshots-btrfs"
+for script in linuxbeos-rollback linuxbeos-update-grub linuxbeos-btrfs-test; do
+  install -D -m 0755 "$BTRFS_SRC/bin/$script" "$INCLUDES/usr/local/bin/$script"
+done
+for unit in grub-btrfs.service grub-btrfs.path linuxbeos-btrfs-test.service; do
+  install -D -m 0644 "$BTRFS_SRC/systemd/$unit" "$INCLUDES/etc/systemd/system/$unit"
+done
+
+# Draai de snapshot-/rollbackscripts ook als root via sbin beschikbaar.
+mkdir -p "$INCLUDES/usr/local/sbin"
+for script in linuxbeos-rollback linuxbeos-update-grub; do
+  ln -sfn "../bin/$script" "$INCLUDES/usr/local/sbin/$script"
+done
+
+# Eén centrale runtimeconfiguratie, gegenereerd uit config/project.conf.
+install -d -m 0755 "$INCLUDES/etc/linuxbeos"
+{
+  printf '# Gegenereerd uit config/project.conf tijdens de build.\n'
+  printf 'BTRFS_ROOT_SUBVOL="/%s"\n' "${BTRFS_ROOT_SUBVOL#/}"
+  printf 'BTRFS_HOME_SUBVOL="/%s"\n' "${BTRFS_HOME_SUBVOL#/}"
+  printf 'BTRFS_SNAPSHOTS_SUBVOL="/%s"\n' "${BTRFS_SNAPSHOTS_SUBVOL#/}"
+  printf 'BTRFS_VAR_LOG_SUBVOL="/%s"\n' "${BTRFS_VAR_LOG_SUBVOL#/}"
+  printf 'BTRFS_VAR_CACHE_SUBVOL="/%s"\n' "${BTRFS_VAR_CACHE_SUBVOL#/}"
+  printf 'BTRFS_SWAP_SUBVOL="/%s"\n' "${BTRFS_SWAP_SUBVOL#/}"
+  printf 'BTRFS_SUBVOLUMES="%s"\n' "$BTRFS_SUBVOLUMES"
+  printf 'BTRFS_SNAPSHOTS_MOUNT="%s"\n' "$BTRFS_SNAPSHOTS_MOUNT"
+  printf 'BTRFS_COMPRESS="%s"\n' "$BTRFS_COMPRESS"
+  printf 'BTRFS_MOUNT_OPTIONS="%s"\n' "$BTRFS_MOUNT_OPTIONS"
+  printf 'SNAPPER_CONFIG="%s"\n' "$SNAPPER_CONFIG"
+} > "$INCLUDES/etc/linuxbeos/btrfs.conf"
+chmod 0644 "$INCLUDES/etc/linuxbeos/btrfs.conf"
+
 export DEBIAN_FRONTEND=noninteractive
 export LC_ALL=C
 

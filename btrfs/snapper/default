@@ -1,0 +1,9 @@
+# LinuxBeOS: Snapper-configuratie.
+#
+# De Debian-versie van Snapper ontdekt configuraties niet automatisch; de
+# namen moeten in SNAPPER_CONFIGS staan. Dit bestand vervangt de standaard
+# /etc/default/snapper uit het snapper-pakket.
+SNAPPER_CONFIGS="root"
+
+# De apt-hook maakt pre/post-snapshots rond pakketbeheer.
+DISABLE_APT_SNAPSHOT="no"

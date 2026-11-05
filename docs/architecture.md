@@ -79,7 +79,7 @@ Het GRUB-menu wordt overschreven via
 meer; bovendien zet het standaardsjabloon geen timeout, waardoor het menu
 oneindig blijft wachten.
 
-## Calamares (fase 1)
+## Calamares (fase 1/2)
 
 De installer-configuratie staat onder `installer/calamares/`. Tijdens de
 build kopieert `scripts/11-build-iso-in-vm.sh` die naar:
@@ -91,8 +91,31 @@ build kopieert `scripts/11-build-iso-in-vm.sh` die naar:
 Calamares wordt als root gestart via `/usr/local/bin/linuxbeos-installer`
 (met `sudo`) of automatisch via `/usr/local/bin/linuxbeos-autoinstall`
 wanneer de VM het SMBIOS-seriënnummer `LINUXBEOS-AUTOINSTALL` heeft.
-De productieketen installeert op ext4 en verwijdert daarna Calamares en de
-live-pakketten uit het doel. Zie [calamares.md](calamares.md) voor details.
+De productieketen installeert op Btrfs met subvolumes en verwijdert daarna
+Calamares en de live-pakketten uit het doel. Zie [calamares.md](calamares.md)
+en [btrfs-layout.md](btrfs-layout.md) voor details.
+
+## Btrfs, Snapper en rollback (fase 2)
+
+De build kopieert `btrfs/` naar de ISO:
+
+- `btrfs/snapper/root` → `/etc/snapper/configs/root`
+- `btrfs/snapper/default` → `/etc/default/snapper` (`SNAPPER_CONFIGS=root`)
+- `btrfs/grub.d/41_snapshots-btrfs` → `/etc/grub.d/`
+- `btrfs/bin/linuxbeos-rollback` en `linuxbeos-update-grub` →
+  `/usr/local/bin` (en als sbin-symlink)
+- `btrfs/systemd/*` → `/etc/systemd/system/`
+
+De root-subvolume `@` wordt door Snapper gesnapshot. `@home`, `@var_log`,
+`@var_cache` en `@snapshots` zijn aparte subvolumes, zodat een rollback van
+`/` de gebruikersdata intact laat. Een eigen generator zet de snapshots als
+read-only entries in GRUB; `grub-btrfs.service` en `grub-btrfs.path` houden
+het menu actueel. `linuxbeos-rollback` vervangt `@` door een schrijfbare
+kopie van een snapshot en bewaart de oude root als `@.broken-<tijdstip>`.
+
+De geautomatiseerde test doorloopt drie boots en schrijft markeringen naar
+de seriële console; zie [development-progress.md](development-progress.md)
+voor de bewijzen.
 
 Het geïnstalleerde systeem schrijft bij het bereiken van `graphical.target`
 een marker via `linuxbeos-installed-ready.service`; de gewone Xfce-sessie

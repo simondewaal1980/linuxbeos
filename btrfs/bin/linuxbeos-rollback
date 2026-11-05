@@ -1,0 +1,173 @@
+#!/bin/bash
+# linuxbeos-rollback — zet de actieve root-subvolume terug naar een
+# Snapper-snapshot.
+#
+# Aanbevolen procedure:
+#   1. kies in het GRUB-menu "LinuxBeOS snapshot <nummer> (...)" en boot die;
+#   2. voer als root uit:  linuxbeos-rollback <nummer>
+#   3. herstart.
+#
+# Het script hernoemt de huidige (gebroken) /@ naar /@.broken-<tijdstip> en
+# maakt van /@snapshots/<nummer>/snapshot een nieuwe, schrijfbare /@.
+# /home, /var/log, /var/cache en /.snapshots blijven onaangeroerd.
+#
+# Vanuit de live-ISO kan hetzelfde met een expliciete schijf:
+#   linuxbeos-rollback --device /dev/sda2 <nummer>
+set -euo pipefail
+
+[ -r /etc/linuxbeos/btrfs.conf ] || {
+  echo "FOUT: /etc/linuxbeos/btrfs.conf ontbreekt." >&2
+  exit 1
+}
+# shellcheck source=/dev/null
+. /etc/linuxbeos/btrfs.conf
+
+SNAP_MOUNT="${BTRFS_SNAPSHOTS_MOUNT:-/.snapshots}"
+ROOT_SUBVOL="${BTRFS_ROOT_SUBVOL:-@}"
+SNAPSHOTS_SUBVOL="${BTRFS_SNAPSHOTS_SUBVOL:-@snapshots}"
+ROOT_SUBVOL="${ROOT_SUBVOL#/}"
+SNAPSHOTS_SUBVOL="${SNAPSHOTS_SUBVOL#/}"
+
+usage() {
+  cat <<EOF
+Gebruik: $0 [--device DEV] <snapshot-nummer>
+        $0 --list
+
+Zet de root-subvolume terug naar een Snapper-snapshot. Draai dit bij
+voorkeur vanuit een vanaf GRUB gestarte snapshot (read-only). Vanuit de
+live-ISO is --device nodig, bijvoorbeeld --device /dev/sda2.
+
+Opties:
+  --device DEV   Btrfs-partitie van de installatie (nodig buiten het
+                 geïnstalleerde systeem)
+  --list         Toon de beschikbare snapshots
+  -h, --help     Deze uitleg
+EOF
+}
+
+DEVICE=""
+LIST=0
+SNAPSHOT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --device)
+      [ $# -ge 2 ] || { usage >&2; exit 1; }
+      DEVICE="$2"; shift
+      ;;
+    --device=*) DEVICE="${1#--device=}" ;;
+    --list) LIST=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "FOUT: onbekende optie $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      if [ -n "$SNAPSHOT" ]; then
+        echo "FOUT: meer dan één snapshotnummer opgegeven." >&2
+        usage >&2
+        exit 1
+      fi
+      SNAPSHOT="$1"
+      ;;
+  esac
+  shift
+done
+
+if [ "$LIST" -eq 1 ]; then
+  snapper -c "${SNAPPER_CONFIG:-root}" list
+  exit 0
+fi
+
+[ -n "$SNAPSHOT" ] || { usage >&2; exit 1; }
+case "$SNAPSHOT" in
+  ''|*[!0-9]*) echo "FOUT: snapshotnummer moet numeriek zijn." >&2; exit 1 ;;
+esac
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "FOUT: dit script moet als root worden uitgevoerd." >&2
+  exit 1
+fi
+
+# Bepaal het apparaat en de huidige subvolume. Buiten een Btrfs-root (zoals
+# de live-ISO) is --device verplicht.
+CURRENT_SUBVOL=""
+if [ "$(findmnt -no FSTYPE / 2>/dev/null || true)" = "btrfs" ]; then
+  CURRENT_SUBVOL="$(findmnt -no OPTIONS / 2>/dev/null | tr ',' '\n' | sed -n 's/^subvol=//p' | head -n 1 || true)"
+  if [ -z "$CURRENT_SUBVOL" ]; then
+    CURRENT_SUBVOL="$(sed -n 's/.*rootflags=subvol=\([^ ]*\).*/\1/p' /proc/cmdline 2>/dev/null | head -n 1 || true)"
+  fi
+  CURRENT_SUBVOL="/${CURRENT_SUBVOL#/}"
+  CURRENT_SUBVOL="${CURRENT_SUBVOL%/}"
+  if [ -z "$DEVICE" ]; then
+    # findmnt toont bij een subvolume-mount ook [/@...]; dat is geen
+    # blokapparaat. Strip de vierkante haken.
+    DEVICE="$(findmnt -no SOURCE / | sed 's/\[.*//')"
+  fi
+fi
+
+if [ -z "$DEVICE" ]; then
+  echo "FOUT: geen Btrfs-apparaat gevonden; gebruik --device DEV." >&2
+  exit 1
+fi
+[ -b "$DEVICE" ] || { echo "FOUT: $DEVICE is geen blokapparaat." >&2; exit 1; }
+
+# Vanuit de actieve root zelf kunnen we /@ niet veilig vervangen. Vanuit een
+# snapshot (die onder /@snapshots ligt) of de live-ISO kan het wel.
+if [ "$CURRENT_SUBVOL" = "/$ROOT_SUBVOL" ]; then
+  cat >&2 <<EOF
+FOUT: je bent gestart van de actieve root-subvolume /$ROOT_SUBVOL.
+
+Start eerst de gewenste snapshot vanuit het GRUB-menu (of gebruik de
+live-ISO met --device) en voer dit script daarna opnieuw uit.
+EOF
+  exit 1
+fi
+
+# /run is een tmpfs en dus ook schrijfbaar als we van een read-only snapshot
+# zijn gestart.
+TOP="$(mktemp -d /run/linuxbeos-rollback.XXXXXX)"
+cleanup() {
+  umount "$TOP" 2>/dev/null || true
+  rmdir "$TOP" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+mount -o subvolid=5,rw "$DEVICE" "$TOP"
+
+SNAP="$TOP/$SNAPSHOTS_SUBVOL/$SNAPSHOT/snapshot"
+ROOT="$TOP/$ROOT_SUBVOL"
+
+[ -d "$SNAP" ] || {
+  echo "FOUT: snapshot $SNAPSHOT niet gevonden op $DEVICE ($SNAPSHOTS_SUBVOL/$SNAPSHOT/snapshot)." >&2
+  exit 1
+}
+[ -d "$ROOT" ] || {
+  echo "FOUT: root-subvolume /$ROOT_SUBVOL niet gevonden op $DEVICE." >&2
+  exit 1
+}
+
+BACKUP="$TOP/$ROOT_SUBVOL.broken-$(date -u +%Y%m%dT%H%M%SZ)"
+if [ -e "$BACKUP" ]; then
+  BACKUP="$BACKUP-$$"
+fi
+
+echo "Huidige root /$ROOT_SUBVOL wordt bewaard als $(basename "$BACKUP") ..."
+mv "$ROOT" "$BACKUP"
+
+echo "Nieuwe /$ROOT_SUBVOL aanmaken uit snapshot $SNAPSHOT ..."
+btrfs subvolume snapshot "$SNAP" "$ROOT"
+
+sync
+
+cat <<EOF
+
+Rollback voltooid.
+  Nieuwe root:     /$ROOT_SUBVOL (uit snapshot $SNAPSHOT)
+  Vorige root:     $(basename "$BACKUP")
+  Ongewijzigd:     /home, /var/log, /var/cache, /.snapshots
+
+Herstart nu. Na controle kun je de oude root opruimen:
+  mount -o subvolid=5 $DEVICE /mnt
+  btrfs subvolume delete /mnt/$(basename "$BACKUP")
+EOF

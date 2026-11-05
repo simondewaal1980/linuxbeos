@@ -15,3 +15,10 @@ systemctl set-default graphical.target
 printf '%s\n' "${LIVE_USER:-live} ALL=(ALL) NOPASSWD: ALL" \
   > /etc/sudoers.d/010-live-nopasswd
 chmod 0440 /etc/sudoers.d/010-live-nopasswd
+
+# Debian-snapper ontdekt configuraties niet automatisch. Zorg dat de
+# root-configuratie ook actief is als een pakket /etc/default/snapper later
+# zou overschrijven.
+if [ -f /etc/default/snapper ]; then
+  sed -i 's/^SNAPPER_CONFIGS=.*/SNAPPER_CONFIGS="root"/' /etc/default/snapper
+fi

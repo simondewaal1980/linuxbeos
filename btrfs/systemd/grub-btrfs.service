@@ -1,0 +1,9 @@
+[Unit]
+Description=GRUB-menu bijwerken met Btrfs-snapshots
+Documentation=file:///etc/grub.d/41_snapshots-btrfs
+After=local-fs.target
+ConditionPathIsDirectory=/.snapshots
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/linuxbeos-update-grub

@@ -24,3 +24,7 @@ LINE=$(printf 'LINUXBEOS_SMOKE session=xfce network=%s' "$state")
 if ! printf '%s\n' "$LINE" | tee /dev/ttyS0 >/dev/null 2>&1; then
   printf '%s\n' "$LINE" | sudo -n tee /dev/ttyS0 >/dev/null 2>&1 || true
 fi
+
+# Signaalfile voor de Btrfs-acceptatietest: die wacht tot de gewone
+# Xfce-sessie en het netwerk klaar zijn voordat hij "done" meldt.
+: > /tmp/linuxbeos-session-ready 2>/dev/null || true

@@ -1,0 +1,203 @@
+#!/bin/bash
+# linuxbeos-btrfs-test — geautomatiseerde acceptatietest voor Btrfs,
+# Snapper, het GRUB-snapshotmenu en de rollbackprocedure.
+#
+# Deze hulp is alleen actief op een geïnstalleerd systeem met het
+# SMBIOS-seriënnummer LINUXBEOS-AUTOINSTALL (dezelfde voorwaarde als de
+# Calamares-autoinstall). De test doorloopt drie boots:
+#
+#   1. layout controleren, snapshot maken, testmarker "breken", GRUB
+#      instellen op de snapshot en herstarten;
+#   2. vanaf de snapshot booten, controleren dat de marker weer "original"
+#      is, de rollback uitvoeren en herstarten;
+#   3. controleren dat /@ terug is, /home bewaard is en dat de Xfce-sessie
+#      met netwerk werkt; daarna LINUXBEOS_BTRFS_TEST done melden.
+#
+# De toestand staat in /var/log (een apart, schrijfbaar subvolume) zodat
+# hij ook beschikbaar is als de root read-only is.
+set -u
+
+CONF=/etc/linuxbeos/btrfs.conf
+STATE_DIR=/var/log/linuxbeos
+STATE="$STATE_DIR/btrfs-test-state"
+LOG="$STATE_DIR/btrfs-test.log"
+MARKER=/etc/linuxbeos-rollback-marker
+HOME_MARKER=/home/testuser/rollback-preserve
+SESSION_READY=/tmp/linuxbeos-session-ready
+
+mkdir -p "$STATE_DIR"
+
+log() {
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$LOG" 2>/dev/null || true
+}
+
+marker() {
+  local line="LINUXBEOS_BTRFS_$*"
+  printf '%s\n' "$line" | tee /dev/ttyS0 >>"$LOG" 2>/dev/null || true
+}
+
+fail() {
+  marker "TEST failed $*"
+  log "FOUT: $*"
+  exit 1
+}
+
+current_subvol() {
+  local opts subvol
+  opts="$(findmnt -no OPTIONS / 2>/dev/null || true)"
+  subvol="$(printf '%s' "$opts" | tr ',' '\n' | sed -n 's/^subvol=//p' | head -n 1 || true)"
+  if [ -z "$subvol" ]; then
+    subvol="$(sed -n 's/.*rootflags=subvol=\([^ ]*\).*/\1/p' /proc/cmdline 2>/dev/null | head -n 1 || true)"
+  fi
+  printf '/%s\n' "${subvol#/}"
+}
+
+state_value() {
+  sed -n "s/^$1=//p" "$STATE" 2>/dev/null | head -n 1
+}
+
+write_state() {
+  {
+    printf 'phase=%s\n' "$1"
+    printf 'snapshot=%s\n' "${2:-}"
+  } >"$STATE"
+}
+
+reboot_now() {
+  sync
+  log "Herstarten ..."
+  systemctl reboot || reboot
+}
+
+# Alleen op een geïnstalleerd systeem, en alleen in de test-VM.
+[ -d /run/live ] && exit 0
+
+serial="$(cat /sys/class/dmi/id/product_serial 2>/dev/null || true)"
+[ "$serial" = "LINUXBEOS-AUTOINSTALL" ] || exit 0
+
+[ -r "$CONF" ] || fail "config-missing /etc/linuxbeos/btrfs.conf"
+# shellcheck source=/dev/null
+. "$CONF"
+ROOT_SUBVOL="${BTRFS_ROOT_SUBVOL#/}"
+SNAPSHOTS_SUBVOL="${BTRFS_SNAPSHOTS_SUBVOL#/}"
+SUBVOLS="${BTRFS_SUBVOLUMES:-$BTRFS_ROOT_SUBVOL $BTRFS_HOME_SUBVOL $BTRFS_SNAPSHOTS_SUBVOL $BTRFS_VAR_LOG_SUBVOL $BTRFS_VAR_CACHE_SUBVOL $BTRFS_SWAP_SUBVOL}"
+
+phase="$(state_value phase)"
+snapshot="$(state_value snapshot)"
+
+log "=== start phase=${phase:-nieuw} snapshot=${snapshot:-}"
+
+if [ "$phase" = "done" ]; then
+  exit 0
+fi
+
+if [ "$(findmnt -no FSTYPE / 2>/dev/null || true)" != "btrfs" ]; then
+  marker "TEST skipped filesystem=$(findmnt -no FSTYPE / 2>/dev/null || echo onbekend)"
+  exit 0
+fi
+
+case "$phase" in
+  "")
+    # ---------------------------------------------------------------- boot 1
+    marker "start"
+    marker "step layout"
+
+    # 1. Subvolume-layout controleren.
+    subvols="$(timeout 60 btrfs subvolume list / 2>/dev/null | awk '{print $NF}')" || fail "subvolume-list"
+    for name in $SUBVOLS; do
+      printf '%s\n' "$subvols" | grep -qx "$name" || fail "subvolume-ontbreekt /$name"
+    done
+
+    # 2. fstab: subvol= per mountpoint en compressie op de root.
+    for name in $SUBVOLS; do
+      grep -q "subvol=/$name" /etc/fstab || fail "fstab-subvol-$name"
+    done
+    grep -q 'compress=zstd' /etc/fstab || fail "fstab-compress"
+    grep -q 'noatime' /etc/fstab || fail "fstab-noatime"
+
+    # 3. Snapper-configuratie en timers.
+    [ -f /etc/snapper/configs/root ] || fail "snapper-config"
+    timeout 60 snapper -c root get-config >/dev/null 2>&1 || fail "snapper-get-config"
+    marker "LAYOUT ok subvolumes=$(printf '%s' "$SUBVOLS" | tr ' ' ',') fstab=subvol,compress=zstd,noatime"
+
+    # 4. Testbestanden: één in /etc (wordt gesnapshot) en één in /home
+    #    (moet bij een rollback behouden blijven).
+    printf 'original\n' >"$MARKER" || fail "marker-schrijven"
+    mkdir -p "$(dirname "$HOME_MARKER")"
+    printf 'keep-me\n' >"$HOME_MARKER" || fail "home-marker-schrijven"
+
+    # 5. Snapshot maken en controleren.
+    marker "step snapshot"
+    snapshot="$(timeout 120 snapper -c root create -d 'phase2-test' -c number -p 2>/dev/null | tail -n 1 || true)"
+    case "$snapshot" in
+      ''|*[!0-9]*) fail "snapshot-maken" ;;
+    esac
+    [ -d "/.snapshots/$snapshot/snapshot" ] || fail "snapshot-pad-$snapshot"
+    marker "SNAPSHOT ok number=$snapshot"
+
+    # 6. GRUB-menu opnieuw genereren en de snapshot-entry controleren.
+    marker "step grub"
+    timeout 180 /usr/local/sbin/linuxbeos-update-grub >/dev/null 2>&1 || fail "update-grub"
+    grep -q -- "linuxbeos-snapshot-$snapshot" /boot/grub/grub.cfg || fail "grub-entry-$snapshot"
+    title="$(grep -F -- "--id \"linuxbeos-snapshot-$snapshot\"" /boot/grub/grub.cfg \
+      | head -n 1 | sed -e 's/^[[:space:]]*menuentry[[:space:]]*"//' -e 's/".*$//')"
+    [ -n "$title" ] || fail "grub-titel-$snapshot"
+    marker "GRUB ok number=$snapshot"
+
+    # 7. De actieve root bewust breken. De snapshot bevat nog "original".
+    printf 'broken\n' >"$MARKER" || fail "marker-breken"
+
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$STATE.original-date" 2>/dev/null || true
+    write_state "snapshot-created" "$snapshot"
+
+    # 8. Volgende boot vanaf de snapshot.
+    timeout 30 grub-reboot "$title" || fail "grub-reboot"
+    marker "BOOT1 ok number=$snapshot next=snapshot"
+    reboot_now
+    ;;
+
+  snapshot-created)
+    # ---------------------------------------------------------------- boot 2
+    marker "step snapshot-boot"
+    [ -n "$snapshot" ] || fail "state-zonder-snapshot"
+    expected="/$SNAPSHOTS_SUBVOL/$snapshot/snapshot"
+    current="$(current_subvol)"
+    [ "$current" = "$expected" ] || fail "niet-vanaf-snapshot current=$current expected=$expected"
+    [ "$(cat "$MARKER" 2>/dev/null || true)" = "original" ] || fail "snapshot-marker-niet-original"
+    marker "SNAPSHOT_BOOT ok number=$snapshot subvol=$current"
+
+    marker "step rollback"
+    timeout 300 /usr/local/sbin/linuxbeos-rollback "$snapshot" >"$STATE_DIR/rollback.log" 2>&1 \
+      || fail "rollback-uitvoeren"
+
+    write_state "rollback-done" "$snapshot"
+    marker "ROLLBACK prepared number=$snapshot"
+    reboot_now
+    ;;
+
+  rollback-done)
+    # ---------------------------------------------------------------- boot 3
+    marker "step final"
+    current="$(current_subvol)"
+    [ "$current" = "/$ROOT_SUBVOL" ] || fail "root-na-rollback current=$current"
+    [ "$(cat "$MARKER" 2>/dev/null || true)" = "original" ] || fail "marker-niet-hersteld"
+    [ "$(cat "$HOME_MARKER" 2>/dev/null || true)" = "keep-me" ] || fail "home-marker-verdwenen"
+
+    # Wacht tot de gewone Xfce-sessie zijn netwerkmarkering heeft geschreven.
+    i=0
+    while [ "$i" -lt 120 ]; do
+      [ -e "$SESSION_READY" ] && break
+      sleep 1
+      i=$((i + 1))
+    done
+    [ -e "$SESSION_READY" ] || fail "xfce-sessie-niet-gereed"
+
+    marker "ROLLBACK ok number=$snapshot marker=original home=preserved"
+    marker "TEST done"
+    write_state "done" "$snapshot"
+    ;;
+
+  *)
+    fail "onbekende-fase-$phase"
+    ;;
+esac

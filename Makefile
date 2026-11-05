@@ -9,8 +9,8 @@ help:
 	  '  make static             Statische projectcontrole' \
 	  '  make test-uefi          UEFI-rooktest (live-sessie)' \
 	  '  make test-bios          BIOS-rooktest (live-sessie)' \
-	  '  make test-install-uefi  UEFI-installatietest + boot doel systeem' \
-	  '  make test-install-bios  BIOS-installatietest + boot doel systeem' \
+	  '  make test-install-uefi  UEFI-installatietest + Btrfs snapshot/rollback' \
+	  '  make test-install-bios  BIOS-installatietest + Btrfs snapshot/rollback' \
 	  '  make test               Statische controle + beide rooktesten' \
 	  '  make test-install       Beide installatietests' \
 	  '  make clean              Build- en testartefacten verwijderen' \

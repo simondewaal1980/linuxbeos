@@ -1,0 +1,10 @@
+[Unit]
+Description=Let op nieuwe of verwijderde Btrfs-snapshots
+After=local-fs.target
+
+[Path]
+PathModified=/.snapshots
+Unit=grub-btrfs.service
+
+[Install]
+WantedBy=multi-user.target

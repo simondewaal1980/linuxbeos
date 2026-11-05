@@ -154,6 +154,58 @@ timeout. De laatste regels van het seriële log bevatten meestal de
 Calamares-foutmelding; het volledige Calamares-log staat in de live-sessie
 onder `/root/.cache/Calamares/` (of in het debugvenster).
 
+## Btrfs, Snapper en rollback
+
+### `The config 'root' does not exist` bij `snapper`
+
+Debian-Snapper leest de lijst configuraties uit
+`/etc/default/snapper`. Controleer:
+
+```sh
+grep SNAPPER_CONFIGS /etc/default/snapper   # moet "root" bevatten
+sudo systemctl restart snapperd
+sudo snapper -c root list
+```
+
+De build zet dit automatisch; op een handmatig gebouwd systeem moet de regel
+`SNAPPER_CONFIGS="root"` aanwezig zijn.
+
+### Geen `LinuxBeOS snapshot ...`-entry in GRUB
+
+Controleer of de generator draait en of `/boot` in de root-subvolume zit:
+
+```sh
+ls -l /etc/grub.d/41_snapshots-btrfs
+/etc/grub.d/41_snapshots-btrfs
+findmnt -T /boot
+sudo /usr/local/sbin/linuxbeos-update-grub
+grep linuxbeos-snapshot /boot/grub/grub.cfg
+```
+
+Het log van de laatste regeneratie staat in
+`/var/log/linuxbeos-update-grub.log`. Een aparte `/boot`-partitie wordt in
+deze fase niet ondersteund.
+
+### Rollback geweigerd
+
+`linuxbeos-rollback` weigert te draaien vanuit de actieve `@`. Start eerst
+de gewenste snapshot vanuit GRUB of gebruik de live-ISO:
+
+```sh
+sudo linuxbeos-rollback --device /dev/sda2 <nummer>
+```
+
+### Test stopt na `LINUXBEOS_BTRFS_step ...`
+
+Bekijk `tests/vm/install-<mode>/boot-serial.log`. De stapmarkeringen tonen
+waar de testhulp is gebleven. Het volledige hulplog staat op het
+geïnstalleerde systeem in `/var/log/linuxbeos/btrfs-test.log`; het
+rollbacklog in `/var/log/linuxbeos/rollback.log`.
+
+Als de VM na de eerste herstart stopt, controleer dan of de testharness
+zonder `-no-reboot` draait. Die optie laat QEMU na een guest-reboot
+termineren en is voor de driedelige Btrfs-test verwijderd.
+
 ## Veiligheid
 
 Alle scripts werken uitsluitend met qcow2-bestanden. Er worden nooit fysieke
