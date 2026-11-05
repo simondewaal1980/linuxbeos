@@ -20,6 +20,9 @@ afzonderlijk testbaar is.
 | Doelsysteem (fase 2/3)                                      |
 |   Btrfs-subvolumes, Snapper, grub-btrfs, BeOS-thema         |
 +-------------------------------------------------------------+
+| Desktopthema (fase 3)                                       |
+|   xfwm4 + GTK2/GTK3 + iconen + cursor + Deskbar + LightDM   |
++-------------------------------------------------------------+
 ```
 
 ## Buildketen
@@ -123,6 +126,39 @@ schrijft de bestaande `LINUXBEOS_SMOKE`-regel. Daarmee test
 `tests/lib/run-install-test.sh` zowel de installatie als de zelfstandige
 boot van het doel systeem.
 
+## BeOS-thema (fase 3)
+
+De thema-assets staan onder `desktop/` en worden door
+`scripts/11-build-iso-in-vm.sh` naar de live-build-includes gekopieerd:
+
+- `desktop/xfwm4` → `/usr/share/themes/LinuxBeOS/xfwm4`;
+- `desktop/gtk` → `/usr/share/themes/LinuxBeOS/gtk-2.0` en `gtk-3.0`;
+- `desktop/icons/LinuxBeOS` en `desktop/cursors/LinuxBeOS` →
+  `/usr/share/icons/LinuxBeOS`;
+- `desktop/backgrounds` → `/usr/share/backgrounds/linuxbeos`.
+
+De xfconf-standaardwaarden staan onder
+`overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/` en gelden voor alle
+gebruikers zonder eigen Xfce-configuratie. Daarmee krijgt de live-sessie
+zonder eerste-start-wizard het LinuxBeOS-thema, de Deskbar rechtsboven, de
+achtergrond, de terminal en het icoon-/cursorthema.
+
+Bij het inloggen vult `linuxbeos-theme-apply` ontbrekende
+achtergrondinstellingen aan en controleert `linuxbeos-theme-check` de
+runtimewaarden. Het resultaat gaat als `LINUXBEOS_THEME ok ...` naar de
+seriële console. De rooktesten eisen deze regel; `--skip-theme` is alleen
+bedoeld voor diagnose. De chroot-hook `0300-theme.chroot` werkt de
+iconen-, desktop- en fontcache bij.
+
+Omdat Calamares de live-squashfs met `unpackfs` uitpakt, komen
+`/usr/share/themes`, `/usr/share/icons`, `/usr/share/backgrounds` en de
+xfconf-standaardwaarden ook in het doelsysteem terecht. De UEFI-
+installatietest bevestigt dit met dezelfde `LINUXBEOS_THEME`-marker; de
+volledige integratie- en releasegate hoort bij fase 4.
+
+De keuzes, licentiegegevens en de visuele checklist staan in
+[theme.md](theme.md).
+
 ## Rooktesten
 
 `tests/test-uefi.sh` en `tests/test-bios.sh` starten de ISO met een lege
@@ -132,9 +168,11 @@ NetworkManager verbonden is en schrijft dan één regel naar `/dev/ttyS0`:
 
 ```
 LINUXBEOS_SMOKE session=xfce network=connected
+LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok
 ```
 
-De testscripts lezen het seriële log en slagen alleen als die regel verschijnt.
+De testscripts lezen het seriële log en slagen alleen als beide regels
+verschijnen (de themaregel kan met `--skip-theme` worden uitgezet).
 Zo wordt de hele keten getest: firmware → GRUB → kernel → live-boot → systemd
 → LightDM → XFCE → netwerk.
 

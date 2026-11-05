@@ -1,0 +1,94 @@
+#!/bin/sh
+# Controleer dat de BeOS-look daadwerkelijk actief is in de Xfce-sessie.
+#
+# De uitvoer gaat naar de seriële console, zodat de geautomatiseerde VM-test
+# niet alleen naar een screenshot hoeft te kijken. De visuele checklist staat
+# in docs/theme.md.
+set -eu
+
+fail_reason=""
+
+require_theme() {
+  value="$1"
+  expected="$2"
+  name="$3"
+  if [ "$value" != "$expected" ]; then
+    fail_reason="${fail_reason}${fail_reason:+,}${name}=${value:-leeg}"
+  fi
+}
+
+q() {
+  xfconf-query -c "$1" -p "$2" 2>/dev/null || true
+}
+
+# Wacht kort tot de vensterbeheerder, het paneel en xfdesktop draaien.
+i=0
+while [ "$i" -lt 30 ]; do
+  if pgrep -x xfwm4 >/dev/null 2>&1 \
+     && pgrep -x xfce4-panel >/dev/null 2>&1 \
+     && pgrep -x xfdesktop >/dev/null 2>&1 \
+     && pgrep -x xfsettingsd >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+  i=$((i + 1))
+done
+
+require_theme "$(q xfwm4 /general/theme)" "LinuxBeOS" "xfwm4"
+require_theme "$(q xsettings /Net/ThemeName)" "LinuxBeOS" "gtk"
+require_theme "$(q xsettings /Net/IconThemeName)" "LinuxBeOS" "icons"
+require_theme "$(q xsettings /Gtk/CursorThemeName)" "LinuxBeOS" "cursor"
+
+# De Deskbar moet rechtsboven staan en uit menu + vensterlijst + klok bestaan.
+position="$(q xfce4-panel /panels/panel-1/position)"
+case "$position" in
+  p=2\;*) : ;;
+  *) fail_reason="${fail_reason}${fail_reason:+,}deskbar-position=${position:-leeg}" ;;
+esac
+
+plugins="$(q xfce4-panel /plugins/plugin-1)$(q xfce4-panel /plugins/plugin-2)$(q xfce4-panel /plugins/plugin-3)"
+case "$plugins" in
+  *applicationsmenu*tasklist*clock*) : ;;
+  *) fail_reason="${fail_reason}${fail_reason:+,}deskbar-plugins=${plugins:-leeg}" ;;
+esac
+
+# Bureaubladpictogrammen horen aan te staan (stijl 2 = file-icons).
+require_theme "$(q xfce4-desktop /desktop-icons/style)" "2" "desktop-icons"
+
+# Ten minste één monitor moet de LinuxBeOS-achtergrond gebruiken.
+wallpaper=""
+for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true); do
+  value="$(q xfce4-desktop "$prop")"
+  if [ "$value" = "/usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png" ]; then
+    wallpaper="ok"
+    break
+  fi
+done
+if [ "$wallpaper" != "ok" ]; then
+  fail_reason="${fail_reason}${fail_reason:+,}wallpaper=missing"
+fi
+
+# Controleer de belangrijkste bestanden naast de runtime-instellingen.
+for f in \
+  /usr/share/themes/LinuxBeOS/xfwm4/themerc \
+  /usr/share/themes/LinuxBeOS/xfwm4/title-active-stretch.png \
+  /usr/share/themes/LinuxBeOS/gtk-3.0/gtk.css \
+  /usr/share/icons/LinuxBeOS/index.theme \
+  /usr/share/icons/LinuxBeOS/scalable/apps/linuxbeos-logo.svg \
+  /usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png; do
+  [ -f "$f" ] || fail_reason="${fail_reason}${fail_reason:+,}ontbreekt=$(basename "$f")"
+done
+
+if [ -n "$fail_reason" ]; then
+  LINE="LINUXBEOS_THEME fail reason=${fail_reason}"
+  logger -t linuxbeos-theme "$LINE" 2>/dev/null || true
+  printf '%s\n' "$LINE" | tee /dev/ttyS0 >/dev/null 2>&1 || \
+    printf '%s\n' "$LINE" | sudo -n tee /dev/ttyS0 >/dev/null 2>&1 || true
+  exit 1
+fi
+
+LINE="LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok"
+logger -t linuxbeos-theme "$LINE" 2>/dev/null || true
+printf '%s\n' "$LINE" | tee /dev/ttyS0 >/dev/null 2>&1 || \
+  printf '%s\n' "$LINE" | sudo -n tee /dev/ttyS0 >/dev/null 2>&1 || true
+: > /tmp/linuxbeos-theme-ready 2>/dev/null || true

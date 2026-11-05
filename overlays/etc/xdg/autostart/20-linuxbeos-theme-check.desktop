@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LinuxBeOS theme check
+Comment=Controleert het BeOS-thema en meldt het resultaat op de seriële console
+Exec=/usr/local/bin/linuxbeos-theme-check
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

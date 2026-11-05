@@ -19,6 +19,7 @@ required_files=(
   "build/live-build/config/bootloaders/grub-pc/config.cfg"
   "build/live-build/config/hooks/live/0100-services.chroot"
   "build/live-build/config/hooks/live/0200-calamares.chroot"
+  "build/live-build/config/hooks/live/0300-theme.chroot"
   "build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-autologin.conf"
   "build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-live.conf"
   "build/live-build/config/includes.chroot/etc/xdg/autostart/linuxbeos-session-ready.desktop"
@@ -53,6 +54,34 @@ required_files=(
   "btrfs/systemd/grub-btrfs.service"
   "btrfs/systemd/grub-btrfs.path"
   "btrfs/systemd/linuxbeos-btrfs-test.service"
+  "desktop/xfwm4/themerc"
+  "desktop/xfwm4/title-active-stretch.png"
+  "desktop/xfwm4/close-active.png"
+  "desktop/xfwm4/close-active.xpm"
+  "desktop/gtk/index.theme"
+  "desktop/gtk/gtk-2.0/gtkrc"
+  "desktop/gtk/gtk-3.0/gtk.css"
+  "desktop/icons/LinuxBeOS/index.theme"
+  "desktop/icons/LinuxBeOS/scalable/apps/linuxbeos-logo.svg"
+  "desktop/icons/LinuxBeOS/scalable/places/user-trash.svg"
+  "desktop/cursors/LinuxBeOS/cursor.theme"
+  "desktop/cursors/LinuxBeOS/cursors/left_ptr"
+  "desktop/backgrounds/linuxbeos-wallpaper.png"
+  "desktop/backgrounds/linuxbeos-greeter.png"
+  "desktop/LICENSE"
+  "desktop/NOTICE.md"
+  "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml"
+  "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+  "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+  "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+  "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml"
+  "overlays/etc/lightdm/lightdm-gtk-greeter.conf.d/99-linuxbeos.conf"
+  "overlays/usr/local/bin/linuxbeos-theme-apply"
+  "overlays/usr/local/bin/linuxbeos-theme-check"
+  "overlays/usr/local/bin/linuxbeos-theme-demo"
+  "overlays/etc/xdg/autostart/10-linuxbeos-theme-apply.desktop"
+  "overlays/etc/xdg/autostart/15-linuxbeos-theme-demo.desktop"
+  "overlays/etc/xdg/autostart/20-linuxbeos-theme-check.desktop"
   "scripts/00-check-host.sh"
   "scripts/01-create-build-vm.sh"
   "scripts/10-build-iso.sh"
@@ -63,6 +92,7 @@ required_files=(
   "tests/test-install-bios.sh"
   "docs/development-progress.md"
   "docs/btrfs-layout.md"
+  "docs/theme.md"
 )
 for f in "${required_files[@]}"; do
   if [[ -f "$PROJECT_ROOT/$f" ]]; then
@@ -77,6 +107,10 @@ for f in \
   "build/live-build/auto/config" \
   "build/live-build/config/hooks/live/0100-services.chroot" \
   "build/live-build/config/hooks/live/0200-calamares.chroot" \
+  "build/live-build/config/hooks/live/0300-theme.chroot" \
+  "overlays/usr/local/bin/linuxbeos-theme-apply" \
+  "overlays/usr/local/bin/linuxbeos-theme-check" \
+  "overlays/usr/local/bin/linuxbeos-theme-demo" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
@@ -126,6 +160,10 @@ for f in \
   "build/live-build/auto/config" \
   "build/live-build/config/hooks/live/0100-services.chroot" \
   "build/live-build/config/hooks/live/0200-calamares.chroot" \
+  "build/live-build/config/hooks/live/0300-theme.chroot" \
+  "overlays/usr/local/bin/linuxbeos-theme-apply" \
+  "overlays/usr/local/bin/linuxbeos-theme-check" \
+  "overlays/usr/local/bin/linuxbeos-theme-demo" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
@@ -335,6 +373,159 @@ if grep -q 'Rollback' "$PROJECT_ROOT/docs/btrfs-layout.md"; then
   pass "Btrfs-layoutdocumentatie beschrijft de rollback"
 else
   fail "docs/btrfs-layout.md mist de rollbackprocedure"
+fi
+
+step "BeOS-thema"
+XFWM_THEME="$PROJECT_ROOT/desktop/xfwm4/themerc"
+if grep -qxF 'full_width_title=true' "$XFWM_THEME"; then
+  pass "xfwm4 gebruikt een volledige titeltab"
+else
+  fail "xfwm4-thema mist full_width_title=true"
+fi
+if grep -qxF 'button_layout=C|M' "$XFWM_THEME"; then
+  pass "xfwm4-knoppen: sluiten links, zoom rechts"
+else
+  fail "xfwm4-thema mist de BeOS-knoppenindeling C|M"
+fi
+if [[ -f "$PROJECT_ROOT/desktop/xfwm4/title-active-stretch.png" ]] \
+   && [[ -f "$PROJECT_ROOT/desktop/xfwm4/title-active-stretch.xpm" ]]; then
+  pass "xfwm4 heeft stretch- en XPM-fallback voor de titeltab"
+else
+  fail "title-active-stretch ontbreekt (PNG of XPM)"
+fi
+if grep -q '^active_text_color=#101010' "$XFWM_THEME"; then
+  pass "xfwm4 gebruikt zwarte tekst op de gele tab"
+else
+  fail "active_text_color ontbreekt of is niet zwart"
+fi
+
+XSETTINGS="$PROJECT_ROOT/overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+if grep -q 'name="ThemeName" type="string" value="LinuxBeOS"' "$XSETTINGS"; then
+  pass "GTK-thema LinuxBeOS is de standaard"
+else
+  fail "xsettings.xml selecteert het GTK-thema niet"
+fi
+if grep -q 'name="IconThemeName" type="string" value="LinuxBeOS"' "$XSETTINGS"; then
+  pass "icoonthema LinuxBeOS is de standaard"
+else
+  fail "xsettings.xml selecteert het icoonthema niet"
+fi
+if grep -q 'name="CursorThemeName" type="string" value="LinuxBeOS"' "$XSETTINGS"; then
+  pass "cursorthema LinuxBeOS is de standaard"
+else
+  fail "xsettings.xml selecteert het cursorthema niet"
+fi
+if grep -q 'value="Liberation Sans 10"' "$XSETTINGS"; then
+  pass "BeOS-achtige systeemfont gekozen (Liberation Sans)"
+else
+  fail "xsettings.xml mist de systeemfontkeuze"
+fi
+
+XFWM_XML="$PROJECT_ROOT/overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+if grep -q 'name="theme" type="string" value="LinuxBeOS"' "$XFWM_XML"; then
+  pass "xfwm4 gebruikt het LinuxBeOS-vensterdecoratie"
+else
+  fail "xfwm4.xml selecteert het thema niet"
+fi
+
+PANEL_XML="$PROJECT_ROOT/overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml"
+if grep -q 'name="position" type="string" value="p=2;x=0;y=0"' "$PANEL_XML"; then
+  pass "Deskbar staat rechtsboven"
+else
+  fail "Deskbarpositie is niet rechtsboven (p=2)"
+fi
+for plugin in applicationsmenu tasklist clock; do
+  if grep -q "value=\"$plugin\"" "$PANEL_XML"; then
+    pass "Deskbar-plugin: $plugin"
+  else
+    fail "Deskbar-plugin ontbreekt: $plugin"
+  fi
+done
+if grep -q 'name="expand" type="bool" value="true"' "$PANEL_XML"; then
+  pass "vensterlijst vult de ruimte tussen menu en klok"
+else
+  fail "tasklist heeft geen expand=true"
+fi
+if grep -q 'name="mode" type="uint" value="2"' "$PANEL_XML"; then
+  pass "klok staat in digitale modus"
+else
+  fail "klokmodus is niet digitaal (2)"
+fi
+DESKTOP_XML="$PROJECT_ROOT/overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+if grep -q 'value="/usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png"' "$DESKTOP_XML"; then
+  pass "BeOS-achtergrond is de standaard"
+else
+  fail "xfce4-desktop.xml verwijst niet naar de LinuxBeOS-achtergrond"
+fi
+if grep -q 'name="style" type="int" value="2"' "$DESKTOP_XML"; then
+  pass "bureaubladpictogrammen (file-icons) zijn ingeschakeld"
+else
+  fail "xfce4-desktop.xml zet de pictogramstijl niet op file-icons (2)"
+fi
+if grep -q 'name="show-trash" type="bool" value="true"' "$DESKTOP_XML"; then
+  pass "prullenbak op het bureaublad"
+else
+  fail "prullenbakpictogram ontbreekt in xfce4-desktop.xml"
+fi
+
+if grep -q 'DESKTOP_SRC' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q 'OVERLAYS_SRC' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q 'usr/share/themes/LinuxBeOS' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh"; then
+  pass "buildscript neemt desktop/ en overlays/ op in de ISO"
+else
+  fail "buildscript kopieert de thema-assets of overlays niet"
+fi
+if grep -q 'LINUXBEOS_THEME ok' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
+  pass "themacontrole schrijft een seriële marker"
+else
+  fail "themacontrole mist de LINUXBEOS_THEME-marker"
+fi
+if grep -q 'THEME_REQUIRED' "$PROJECT_ROOT/tests/lib/run-vm-test.sh" \
+   && grep -q 'LINUXBEOS_THEME' "$PROJECT_ROOT/tests/lib/run-vm-test.sh"; then
+  pass "rooktest vereist het thema (met --skip-theme als diagnosemaatregel)"
+else
+  fail "rooktest controleert het thema niet"
+fi
+if [[ -f "$PROJECT_ROOT/desktop/LICENSE" ]] && [[ -f "$PROJECT_ROOT/desktop/NOTICE.md" ]]; then
+  pass "licentie en herkomst van de thema-assets vastgelegd"
+else
+  fail "desktop/LICENSE of desktop/NOTICE.md ontbreekt"
+fi
+if grep -qxF 'fonts-liberation2' "$PROJECT_ROOT/build/live-build/config/package-lists/desktop.list.chroot"; then
+  pass "pakket fonts-liberation2 aanwezig"
+else
+  fail "fonts-liberation2 ontbreekt in de pakketlijst"
+fi
+if grep -qxF 'librsvg2-common' "$PROJECT_ROOT/build/live-build/config/package-lists/desktop.list.chroot"; then
+  pass "SVG-rendering (librsvg2-common) aanwezig"
+else
+  fail "librsvg2-common ontbreekt in de pakketlijst"
+fi
+
+# Controleer dat alle relatieve symlinks in het icoonthema naar bestaande
+# bestanden wijzen; een gebroken alias geeft anders ontbrekende iconen.
+broken_links=0
+while IFS= read -r -d '' link; do
+  target="$(readlink "$link")"
+  if [[ ! -e "$(dirname "$link")/$target" ]]; then
+    fail "gebroken icoonsymlink: ${link#"$PROJECT_ROOT/"}"
+    broken_links=$((broken_links + 1))
+  fi
+done < <(find "$PROJECT_ROOT/desktop/icons/LinuxBeOS" -type l -print0)
+if (( broken_links == 0 )); then
+  pass "alle icoonsymlinks zijn geldig"
+fi
+
+if command -v xmllint >/dev/null 2>&1; then
+  for xml in "$PROJECT_ROOT"/overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/*.xml; do
+    if xmllint --noout "$xml" 2>/dev/null; then
+      pass "XML geldig: ${xml#"$PROJECT_ROOT/"}"
+    else
+      fail "ongeldige XML: ${xml#"$PROJECT_ROOT/"}"
+    fi
+  done
+else
+  warn "xmllint ontbreekt; XML-controle overgeslagen"
 fi
 
 step "Live-sessie"

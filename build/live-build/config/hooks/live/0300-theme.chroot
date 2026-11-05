@@ -1,0 +1,24 @@
+#!/bin/sh
+# Live-build chroot-hook: iconen- en desktop-caches bijwerken na het plaatsen
+# van het LinuxBeOS-thema. Zonder deze stap kan een GTK-app de nieuwe iconen
+# pas na een herstart vinden.
+set -eu
+
+if [ -d /usr/share/icons/LinuxBeOS ]; then
+  gtk-update-icon-cache -f -t /usr/share/icons/LinuxBeOS >/dev/null 2>&1 || true
+fi
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+fi
+
+if command -v fc-cache >/dev/null 2>&1; then
+  fc-cache -f >/dev/null 2>&1 || true
+fi
+
+# Het thema gebruikt Liberation-lettertypen; die horen via de pakketlijst
+# binnen te komen. Een ontbrekend font is geen buildfout, maar wel zichtbaar
+# in de live-sessie, dus log het voor de troubleshooting-documentatie.
+if ! fc-list 2>/dev/null | grep -qi 'Liberation Sans'; then
+  echo "WAARSCHUWING: Liberation Sans niet gevonden; controleer fonts-liberation2" >&2
+fi

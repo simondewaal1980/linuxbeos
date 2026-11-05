@@ -321,6 +321,14 @@ if ! grep -aq 'LINUXBEOS_SMOKE session=xfce' "$BOOT_SERIAL" 2>/dev/null; then
   die "Xfce-sessie in het geïnstalleerde systeem ($MODE) niet bevestigd"
 fi
 
+# Fase 3: het thema moet via unpackfs ook op het doelsysteem actief zijn.
+THEME_MARKER="$(grep -a 'LINUXBEOS_THEME ok' "$BOOT_SERIAL" 2>/dev/null | tail -1 || true)"
+if [[ -z "$THEME_MARKER" ]]; then
+  warn "geen LINUXBEOS_THEME-marker in het geïnstalleerde systeem ($MODE)"
+else
+  ok "thema: $THEME_MARKER"
+fi
+
 screenshot "$SCREENSHOT" || true
 
 {
@@ -328,6 +336,7 @@ screenshot "$SCREENSHOT" || true
   printf 'resultaat=geslaagd\n'
   printf 'installed-ready=%s\n' "$(grep -a 'LINUXBEOS_INSTALLED_READY' "$BOOT_SERIAL" | tail -1)"
   printf 'smoke=%s\n' "$(grep -a 'LINUXBEOS_SMOKE' "$BOOT_SERIAL" | tail -1)"
+  printf 'theme=%s\n' "${THEME_MARKER:-niet gemeld}"
   printf 'btrfs-layout=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_LAYOUT' "$BOOT_SERIAL" | tail -1)"
   printf 'snapshot=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_SNAPSHOT ok' "$BOOT_SERIAL" | tail -1)"
   printf 'grub=%s\n' "$(grep -a 'LINUXBEOS_BTRFS_GRUB' "$BOOT_SERIAL" | tail -1)"

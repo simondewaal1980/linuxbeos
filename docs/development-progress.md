@@ -19,7 +19,7 @@ Laatst bijgewerkt: 2026-11-05
 | 0 | Live-build-pipeline + minimale XFCE-desktop | GEREED |
 | 1 | Calamares standaardinstallatie (ext4) | GEREED |
 | 2 | Btrfs + subvolumes + snapshots | GEREED |
-| 3 | BeOS 5-thema op XFCE | TODO |
+| 3 | BeOS 5-thema op XFCE | GEREED |
 | 4 | Volledige integratie en releasegate | TODO |
 
 ## Fase 0 — live-build-pipeline + minimale desktop
@@ -205,6 +205,86 @@ oude root als `@.broken-<tijdstip>`.
 - Het swapfile is 512 MiB (Calamares-standaard) en staat in `@swap`, dat
   niet wordt gesnapshot.
 
+## Fase 3 — BeOS 5-thema op XFCE
+
+**Doel:** de live-sessie toont out-of-the-box de BeOS R5-look: vensters,
+Deskbar, iconen, cursor en achtergrond.
+**Nog niet:** integratie met de installer en het doelsysteem (fase 4).
+
+### Checklist
+
+| # | Onderdeel | Status |
+|---|---|---|
+| 1 | xfwm4-thema met gele titeltab, sluit- en zoomknop | GEREED |
+| 2 | GTK2- en GTK3-thema met BeOS-grijstinten en vlakke widgets | GEREED |
+| 3 | Deskbar rechtsboven (menu, vensterlijst, klok) via xfconf | GEREED |
+| 4 | Eigen SVG-iconen, Xcursor-thema en achtergrond | GEREED |
+| 5 | LightDM-greeter, terminalprofiel en lettertypekeuze | GEREED |
+| 6 | Licenties en herkomst van alle assets vastgelegd | GEREED |
+| 7 | Statische test op alle themabestanden, symlinks en XML | GEREED |
+| 8 | Automatische themacontrole met `LINUXBEOS_THEME`-marker | GEREED |
+| 9 | Rooktest UEFI en BIOS met themacontrole en screenshots | GEREED |
+| 10 | Visuele checklist in `docs/theme.md` afgerond | GEREED |
+
+### Acceptatiecriteria
+
+- [x] De live-sessie toont de BeOS-look zonder handmatige instellingen.
+- [x] De rooktest op UEFI en BIOS schrijft `LINUXBEOS_THEME ok ...`.
+- [x] De visuele checklist is afgerond en voorzien van screenshots.
+- [x] Licenties en beperkingen zijn gedocumenteerd.
+
+### Bewijs
+
+| Controle | UEFI | BIOS |
+|---|---|---|
+| Sessiemarker | `LINUXBEOS_SMOKE session=xfce network=connected` | idem |
+| Themmarker | `LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok` | idem |
+| Bureaublad | [phase3-live-uefi.png](screenshots/phase3-live-uefi.png) | [phase3-live-bios.png](screenshots/phase3-live-bios.png) |
+| Vensters + Deskbar | [phase3-windows-uefi.png](screenshots/phase3-windows-uefi.png) | [phase3-windows-bios.png](screenshots/phase3-windows-bios.png) |
+| Geïnstalleerd systeem | [phase3-installed-uefi.png](screenshots/phase3-installed-uefi.png) — `LINUXBEOS_THEME ok` in `boot-serial.log` | idem via dezelfde installatieketen (fase 2-test) |
+| Testmap | `tests/vm/uefi/` | `tests/vm/bios/` |
+
+| Buildgegeven | Waarde |
+|---|---|
+| ISO | `dist/linuxbeos-0.1-amd64.iso` |
+| SHA256 | `95515c4622b902c9e8c83f6dda60c76c6f99212e0e35f64bf685a986c301015d` |
+| Grootte | 1,5 GiB |
+| Kernel | `7.2.15+deb14-amd64` |
+| xfwm4 | 4.20.0 (Debian Sid) |
+| Thema | `LinuxBeOS` (xfwm4 + GTK2 + GTK3) |
+| Iconen/cursor | `LinuxBeOS` |
+| Lettertypen | Liberation Sans / Liberation Mono |
+
+De live-sessie start met autologin en laadt de xfconf-standaardwaarden uit
+`/etc/xdg`. De themacontrole bevestigt de runtimewaarden en schrijft de
+seriële marker. De visuele checklist en de volledige beschrijving staan in
+[docs/theme.md](theme.md).
+
+### Ontwerp in het kort
+
+- **xfwm4:** volle-brede gele tab via `title-active-stretch`, knoppen
+  `C|M`, grijze inactieve tab, donkere tekst.
+- **GTK:** `#d6d6d6`-achtergrond, rechte randen, 1px-bevel, gele actieve
+  notebooktab, donkerblauwe terminal.
+- **Deskbar:** paneel `p=2` (rechtsboven), 34% breed, met
+  `applicationsmenu`, `tasklist` en `clock`.
+- **Assets:** eigen SVG-iconen met Adwaita-fallback, eigen Xcursor, eigen
+  1920×1080-achtergrond, Liberation Sans/Mono.
+- **Controle:** `linuxbeos-theme-check` schrijft een seriële marker;
+  `tests/static/check-config.sh` controleert de configuratie statisch.
+
+### Aandachtspunten
+
+- De BeOS-tab wordt nagebootst met de xfwm4-themaengine. Een perfecte
+  tabgeometrie en native zoomgedrag zijn niet mogelijk; dit staat
+  gedocumenteerd in `docs/theme.md`.
+- `title-active-stretch` vereist xfwm4 4.20 (Debian Sid). Oudere versies
+  vallen terug op de losse titelstukken.
+- De assets zijn vanaf nul getekend. Er zijn geen BeOS-, Be Inc.- of
+  Haiku-bestanden of merken overgenomen; zie `desktop/NOTICE.md`.
+- Het thema wordt door `unpackfs` automatisch in het doelsysteem geplaatst.
+  De expliciete integratie en de testmatrix daarvan horen bij fase 4.
+
 ## Beslissingen
 
 | Datum | Beslissing | Reden |
@@ -228,6 +308,13 @@ oude root als `@.broken-<tijdstip>`.
 | 2026-11-05 | `SNAPPER_CONFIGS="root"` in `/etc/default/snapper` | Debian-Snapper ontdekt configuraties niet automatisch; zonder deze regel bestaat de config voor snapperd niet. |
 | 2026-11-05 | `-no-reboot` uit de installatietest verwijderd | De Btrfs-test moet drie keer binnen dezelfde QEMU-sessie kunnen herstarten; de installatiefase beëindigt QEMU via `poweroff`. |
 | 2026-11-05 | Btrfs-testhulp alleen in de testvariant | De productie-opruiming verwijdert helper en dienst; de auto-cleanup laat ze staan zodat de driedelige test na de installatie kan draaien. |
+| 2026-11-05 | Thema-assets vanaf nul getekend, MIT-licentie | Geen BeOS/Haiku-merken of -bestanden overnemen; herkomst en licentie staan in `desktop/NOTICE.md`. |
+| 2026-11-05 | Gele tab via `title-active-stretch` (xfwm4 4.20) | De stretch-afbeelding geeft de volle-brede BeOS-tab; losse titelstukken en XPM blijven als fallback aanwezig. |
+| 2026-11-05 | Knoppenindeling `C|M` (sluiten links, zoom rechts) | Komt overeen met de BeOS-tab; minimaliseren gebeurt via de vensterlijst in de Deskbar. |
+| 2026-11-05 | Deskbar als xfce4-panel op `p=2`, 34% breed | Rechtsboven, compact, met menu, vensterlijst en klok, zonder struts zodat hij als klassieke Deskbar over vensters ligt. |
+| 2026-11-05 | Liberation Sans/Mono in plaats van Swiss 721 | Open SIL OFL-alternatief dat in Debian Sid beschikbaar is en geen extra niet-vrije download vereist. |
+| 2026-11-05 | Themacontrole als seriële marker in de rooktest | De acceptatie is machinaal aantoonbaar; `--skip-theme` blijft beschikbaar voor diagnose. |
+| 2026-11-05 | Achtergrond per monitor aangevuld door `linuxbeos-theme-apply` | xfdesktop gebruikt connector-namen; de helper vult alleen ontbrekende waarden aan en respecteert gebruikerskeuzes. |
 
 ## Aandachtspunten voor latere fasen
 
@@ -238,14 +325,19 @@ oude root als `@.broken-<tijdstip>`.
    en een vastgepinde cloud-image-datum gebruiken.
 3. **Buildtijd:** de eerste build duurt circa 15-20 minuten; latere builds
    hergebruiken de live-build-pakketcache in de VM.
-4. **Live-identiteit:** het paneel toont nog de standaard Debian-live-gebruiker
-   en wallpaper. Dat wordt in fase 3 vervangen door de BeOS-desktop.
-5. **Secure Boot:** de ISO is nu unsigned. Voor fase 4 kan `shim-signed` +
+4. **Live-identiteit:** sinds fase 3 gebruikt de live-sessie het LinuxBeOS-
+   thema, de Deskbar en de eigen achtergrond. De definitieve distronaam en
+   eventuele gebruikersnaam blijven fase 4-aandachtspunten.
+5. **Thema op het doelsysteem:** `unpackfs` neemt de themabestanden en
+   `/etc/xdg`-standaardwaarden automatisch mee. Fase 4 moet expliciet testen
+   dat een nieuwe gebruiker op het geïnstalleerde systeem dezelfde look
+   krijgt en dat bestaande gebruikerskeuzes gerespecteerd blijven.
+6. **Secure Boot:** de ISO is nu unsigned. Voor fase 4 kan `shim-signed` +
    `grub-efi-amd64-signed` worden toegevoegd; dat is nog niet getest.
-6. **Oude root opruimen:** na een rollback blijft `@.broken-<tijdstip>` staan.
+7. **Oude root opruimen:** na een rollback blijft `@.broken-<tijdstip>` staan.
    Dat is bewust (veilig terugvallen) maar moet door de gebruiker of een
    toekomstig opruimscript worden verwijderd.
-7. **Snapshotgenerator:** de eigen `41_snapshots-btrfs` ondersteunt geen
+8. **Snapshotgenerator:** de eigen `41_snapshots-btrfs` ondersteunt geen
    aparte `/boot`-partitie. Als die in een latere fase wordt toegevoegd,
    moet de generator worden uitgebreid of alsnog grub-btrfs worden
    geïmporteerd.
@@ -286,3 +378,15 @@ oude root als `@.broken-<tijdstip>`.
 | 2026-11-05 | Screenshots van beide Btrfs-systemen toegevoegd als `phase2-installed-uefi.png` en `phase2-installed-bios.png`. |
 | 2026-11-05 | Productie-opruiming verwijdert de Btrfs-testhulp; de testvariant behoudt hem via een eigen cleanup-config. |
 | 2026-11-05 | Definitieve ISO gebouwd (`950c19a6…`) en beide installatie-/rollbacktests opnieuw geslaagd. |
+| 2026-11-05 | Fase 3 gestart: xfwm4-, GTK2/GTK3-, icoon- en cursorthema, Deskbar en achtergrond toegevoegd. |
+| 2026-11-05 | Eigen renderscript `desktop/tools/generate-assets.py` voor xfwm4-afbeeldingen, Xcursor en achtergronden. |
+| 2026-11-05 | xfconf-standaardwaarden, LightDM-greeter en terminalprofiel toegevoegd; themacontrole schrijft `LINUXBEOS_THEME`. |
+| 2026-11-05 | Statische controle uitgebreid met themabestanden, symlinks, xfconf-waarden en XML-syntax. |
+| 2026-11-05 | Eerste thema-ISO getest: marker geslaagd, maar paneel toonde alleen menu en analoge klok; desktoppictogrammen stonden uit. |
+| 2026-11-05 | xfce4-desktop gecorrigeerd: `desktop-icons/style=2` en `file-icons/show-*`; klok op digitale modus (2); tasklist `expand=true`. |
+| 2026-11-05 | Tweede test bevestigde desktoppictogrammen, digitale klok en vensterlijst; vensterscherm toonde de gele actieve tab en grijze inactieve tab. |
+| 2026-11-05 | Testhulp `linuxbeos-theme-demo` toegevoegd (alleen actief bij SMBIOS-seriënummer `LINUXBEOS-THEME-DEMO`) voor de vensterscreenshot. |
+| 2026-11-05 | Definitieve fase 3-ISO gebouwd (`95515c46…`); UEFI- en BIOS-rooktest met `LINUXBEOS_THEME ok` geslaagd. |
+| 2026-11-05 | Screenshots toegevoegd: `phase3-live-{uefi,bios}.png` en `phase3-windows-{uefi,bios}.png`; visuele checklist afgerond. |
+| 2026-11-05 | UEFI-installatietest herhaald op de fase 3-ISO: Btrfs-rollback geslaagd en het geïnstalleerde systeem schrijft `LINUXBEOS_THEME ok`. |
+| 2026-11-05 | Screenshot geïnstalleerd systeem toegevoegd als `phase3-installed-uefi.png`. |

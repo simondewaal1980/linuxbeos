@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfce4-terminal" version="1.0">
+  <property name="font-name" type="string" value="Liberation Mono 10"/>
+  <property name="font-use-system" type="bool" value="false"/>
+  <property name="background-mode" type="string" value="TERMINAL_BACKGROUND_SOLID"/>
+  <property name="background-color" type="string" value="#0b1a3a"/>
+  <property name="foreground-color" type="string" value="#f2f2f2"/>
+  <property name="cursor-color" type="string" value="#f5e64b"/>
+  <property name="cursor-blink" type="bool" value="true"/>
+  <property name="color-palette" type="string" value="#0b1a3a;#cc4444;#44aa55;#c9b93a;#3366cc;#9b59b6;#3399aa;#d6d6d6;#555555;#ff6666;#66dd77;#f5e64b;#6699ff;#cc88dd;#66ccdd;#ffffff"/>
+  <property name="misc-menubar-default" type="bool" value="false"/>
+  <property name="misc-always-show-tabs" type="bool" value="false"/>
+  <property name="misc-slim-tabs" type="bool" value="true"/>
+  <property name="title-mode" type="string" value="TERMINAL_TITLE_HIDE"/>
+  <property name="scrollbar-visible" type="bool" value="true"/>
+  <property name="scroll-on-output" type="bool" value="true"/>
+</channel>

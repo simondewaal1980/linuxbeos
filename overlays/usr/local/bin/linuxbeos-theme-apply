@@ -1,0 +1,45 @@
+#!/bin/sh
+# Zorg dat de BeOS-achtergrond op alle aanwezige monitoren staat.
+#
+# De xfconf-standaardwaarden dekken de gebruikelijke monitornamen al af. Deze
+# helper vult alleen ontbrekende of ongeldige waarden aan, zodat een bestaande
+# gebruikerskeuze nooit wordt overschreven. Daarmee werkt de live-sessie ook
+# op een monitorconnector die niet in de standaardwaarden voorkomt.
+set -eu
+
+WALLPAPER=/usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png
+[ -f "$WALLPAPER" ] || exit 0
+
+command -v xfconf-query >/dev/null 2>&1 || exit 0
+
+# Geef xfdesktop de kans om zijn eigenschappen voor de huidige monitor aan te
+# maken.
+sleep 2
+
+props=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true)
+if [ -z "$props" ]; then
+  # Nog geen monitorprop; maak de klassieke monitor0-prop aan.
+  xfconf-query -c xfce4-desktop \
+    -p /backdrop/screen0/monitor0/workspace0/last-image \
+    -n -t string -s "$WALLPAPER" >/dev/null 2>&1 || true
+  xfconf-query -c xfce4-desktop \
+    -p /backdrop/screen0/monitor0/workspace0/image-style \
+    -n -t int -s 5 >/dev/null 2>&1 || true
+  props=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true)
+fi
+
+for prop in $props; do
+  current=$(xfconf-query -c xfce4-desktop -p "$prop" 2>/dev/null || true)
+  if [ -z "$current" ] || [ ! -f "$current" ]; then
+    xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" >/dev/null 2>&1 || true
+  fi
+  base=${prop%/last-image}
+  if ! xfconf-query -c xfce4-desktop -p "$base/image-style" >/dev/null 2>&1; then
+    xfconf-query -c xfce4-desktop -p "$base/image-style" -n -t int -s 5 >/dev/null 2>&1 || true
+  fi
+done
+
+# Laat xfdesktop de nieuwe achtergrond direct tekenen.
+if command -v xfdesktop >/dev/null 2>&1; then
+  xfdesktop --reload >/dev/null 2>&1 || true
+fi

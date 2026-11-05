@@ -206,6 +206,75 @@ Als de VM na de eerste herstart stopt, controleer dan of de testharness
 zonder `-no-reboot` draait. Die optie laat QEMU na een guest-reboot
 termineren en is voor de driedelige Btrfs-test verwijderd.
 
+## BeOS-thema (fase 3)
+
+### De desktop blijft standaard Debian/Xfce
+
+Controleer in de live-sessie:
+
+```sh
+xfconf-query -c xfwm4 -p /general/theme
+xfconf-query -c xsettings -p /Net/ThemeName
+xfconf-query -c xsettings -p /Net/IconThemeName
+ls /usr/share/themes/LinuxBeOS /usr/share/icons/LinuxBeOS
+```
+
+Als de bestanden ontbreken, is de build niet goed klaargezet. Controleer in
+de build-VM of `desktop/` en `overlays/` in `config/includes.chroot` staan.
+Als de bestanden er wel zijn maar de waarden niet kloppen, heeft de
+gebruiker een eigen xfconf-waarde; verwijder die of start met een schone
+`~/.config/xfce4`.
+
+### `LINUXBEOS_THEME fail ...` in het seriële log
+
+De marker noemt de eerste afwijkingen, bijvoorbeeld
+`wallpaper=missing` of `deskbar-position=...`. Bekijk in de live-sessie:
+
+```sh
+cat /tmp/linuxbeos-theme-ready      # bestaat alleen bij succes
+xfconf-query -c xfce4-panel -l | sort
+xfconf-query -c xfce4-desktop -l | grep last-image
+```
+
+- **wallpaper=missing**: `linuxbeos-theme-apply` draait vóór de controle en
+  vult ontbrekende monitoren aan. Controleer of xfdesktop draait en of
+  `/usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png` bestaat.
+- **deskbar-plugins**: het paneel heeft zijn standaardconfiguratie niet
+  geladen. Controleer of `xfce4-panel.xml` in
+  `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/` staat en of de gebruiker geen
+  oud `~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml` heeft.
+- **xfwm4/gtk/icons/cursor**: het thema staat niet op `LinuxBeOS`; controleer
+  `xsettings.xml`, `xfwm4.xml` en de themamappen.
+
+Voor diagnose kan de rooktest met `--skip-theme` worden gestart; de sessie
+moet dan nog steeds `LINUXBEOS_SMOKE ...` halen.
+
+### De titeltab is geel maar de titeltekst ontbreekt
+
+De tab gebruikt `title-active-stretch`, dat pas vanaf xfwm4 4.20 wordt
+geladen. Controleer de versie:
+
+```sh
+xfwm4 --version
+```
+
+Op Debian Sid hoort dit 4.20 of nieuwer te zijn. Bij een oudere versie is de
+gedocumenteerde fallback actief; werk xfwm4 bij of accepteer dat de titeltekst
+in dat geval niet wordt getekend.
+
+### De cursor of de iconen zijn na een themawijziging niet zichtbaar
+
+De build werkt de caches bij in `0300-theme.chroot`. Op een draaiend systeem:
+
+```sh
+sudo gtk-update-icon-cache -f -t /usr/share/icons/LinuxBeOS
+xfce4-panel -r
+xfwm4 --replace &
+```
+
+Meld je daarna opnieuw aan; sommige applicaties lezen het icoonthema alleen
+bij het starten.
+
 ## Veiligheid
 
 Alle scripts werken uitsluitend met qcow2-bestanden. Er worden nooit fysieke

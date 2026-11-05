@@ -19,6 +19,8 @@ KEEP=0
 TIMEOUT=300
 MEMORY=4096
 CPUS=4
+THEME_REQUIRED=1
+DEMO=1
 
 usage() {
   cat <<EOF
@@ -30,6 +32,8 @@ Gebruik: $0 <uefi|bios> [opties]
   --memory MB      Geheugen voor de test-VM (standaard 4096)
   --cpus N         vCPU's voor de test-VM (standaard 4)
   --keep           Bewaar de testmap (schijf, OVMF-vars, log)
+  --skip-theme     Accepteer een sessie zonder LINUXBEOS_THEME-marker
+  --no-demo        Open geen terminal/Thunar voor de vensterscreenshot
   -h, --help       Deze uitleg
 EOF
 }
@@ -42,6 +46,8 @@ while (( $# > 0 )); do
       ;;
     --gui) GUI=1 ;;
     --keep) KEEP=1 ;;
+    --skip-theme) THEME_REQUIRED=0 ;;
+    --no-demo) DEMO=0 ;;
     --timeout)
       [[ $# -ge 2 ]] || die "--timeout vereist een waarde"
       TIMEOUT="$2"; shift
@@ -116,6 +122,10 @@ QEMU_ARGS=(
   -monitor "unix:$MONITOR,server,nowait"
 )
 
+if (( DEMO )); then
+  QEMU_ARGS+=(-smbios "type=1,serial=LINUXBEOS-THEME-DEMO")
+fi
+
 if [[ "$MODE" == "uefi" ]]; then
   OVMF_CODE="$(ovmf_code_path)" || die "OVMF_CODE niet gevonden"
   OVMF_VARS_SRC="$(ovmf_vars_path)" || die "OVMF_VARS niet gevonden"
@@ -145,7 +155,23 @@ marker_in_log() {
   grep -a 'LINUXBEOS_SMOKE' "$SERIAL" 2>/dev/null | tail -1 || true
 }
 
+theme_marker_in_log() {
+  grep -a 'LINUXBEOS_THEME' "$SERIAL" 2>/dev/null | tail -1 || true
+}
+
+session_and_theme_ready() {
+  local marker theme
+  marker="$(marker_in_log)"
+  theme="$(theme_marker_in_log)"
+  [[ "$marker" == *"session=xfce"* && "$marker" == *"network=connected"* ]] || return 1
+  if (( THEME_REQUIRED )); then
+    [[ "$theme" == *"LINUXBEOS_THEME ok"* ]] || return 1
+  fi
+  return 0
+}
+
 take_screenshot() {
+  local target="${1:-$SCREENSHOT}" delay="${2:-5}"
   if (( GUI )); then
     return 0
   fi
@@ -154,23 +180,23 @@ take_screenshot() {
     return 0
   fi
   # Even wachten zodat wallpaper, paneel en desktoppictogrammen gerenderd zijn.
-  sleep 5
+  sleep "$delay"
   local ppm="$WORK/screenshot.ppm"
   rm -f "$ppm"
   if printf 'screendump %s\n' "$ppm" \
       | timeout 10 socat - "UNIX-CONNECT:$MONITOR" >/dev/null 2>&1; then
     if [[ -s "$ppm" ]]; then
-      if have_cmd convert && convert "$ppm" "$SCREENSHOT" 2>/dev/null; then
+      if have_cmd convert && convert "$ppm" "$target" 2>/dev/null; then
         :
-      elif have_cmd pnmtopng && pnmtopng "$ppm" > "$SCREENSHOT" 2>/dev/null; then
+      elif have_cmd pnmtopng && pnmtopng "$ppm" > "$target" 2>/dev/null; then
         :
       else
-        SCREENSHOT="$ppm"
+        target="$ppm"
       fi
-      if [[ -f "$SCREENSHOT" ]]; then
-        ok "screenshot: $SCREENSHOT"
+      if [[ -f "$target" ]]; then
+        ok "screenshot: $target"
       fi
-      if [[ "$SCREENSHOT" != "$ppm" ]]; then
+      if [[ "$target" != "$ppm" ]]; then
         rm -f "$ppm"
       fi
     else
@@ -189,7 +215,7 @@ if (( GUI )); then
   wait "$QEMU_PID" || true
   QEMU_PID=""
   marker="$(marker_in_log)"
-  [[ "$marker" == *"session=xfce"* && "$marker" == *"network=connected"* ]] && success=1
+  session_and_theme_ready && success=1
 else
   while (( SECONDS - start < TIMEOUT )); do
     if ! kill -0 "$QEMU_PID" 2>/dev/null; then
@@ -197,7 +223,7 @@ else
       break
     fi
     marker="$(marker_in_log)"
-    if [[ "$marker" == *"session=xfce"* && "$marker" == *"network=connected"* ]]; then
+    if session_and_theme_ready; then
       success=1
       break
     fi
@@ -206,10 +232,17 @@ else
 fi
 
 if (( success )); then
-  take_screenshot
-  printf '%s\n' "$marker" > "$RESULT"
+  # Eerst het kale bureaublad (pictogrammen, Deskbar, achtergrond), daarna
+  # de testvensters van linuxbeos-theme-demo voor de vensterdecoratie.
+  take_screenshot "$WORK/screenshot.png" 8
+  take_screenshot "$WORK/screenshot-windows.png" 25
+  {
+    printf '%s\n' "$marker"
+    theme_marker_in_log
+  } > "$RESULT"
   ok "XFCE-sessie en netwerk zijn gereed"
   ok "marker: $marker"
+  ok "thema:  $(theme_marker_in_log)"
   ok "serieel log: $SERIAL"
   if (( KEEP )); then
     ok "testmap bewaard: $WORK"
@@ -217,16 +250,22 @@ if (( success )); then
   exit 0
 fi
 
+# Bewaar ook bij een mislukte themacontrole een screenshot voor diagnose.
+take_screenshot
 {
   printf 'mode=%s\n' "$MODE"
   printf 'iso=%s\n' "$ISO"
   printf 'marker=%s\n' "$marker"
+  printf 'theme=%s\n' "$(theme_marker_in_log)"
   printf 'resultaat=mislukt\n'
 } > "$RESULT"
 
 warn "geen geldige LINUXBEOS_SMOKE-regel met network=connected gevonden"
 if [[ -n "$marker" ]]; then
   warn "laatste marker: $marker"
+fi
+if (( THEME_REQUIRED )); then
+  warn "laatste themamarker: $(theme_marker_in_log)"
 fi
 warn "laatste 60 regels uit het seriële log:"
 tail -n 60 "$SERIAL" >&2 || true

@@ -1,4 +1,4 @@
-.PHONY: all check vm iso test static test-uefi test-bios test-install-uefi test-install-bios clean distclean help
+.PHONY: all check vm iso test static assets test-uefi test-bios test-install-uefi test-install-bios clean distclean help
 
 help:
 	@printf '%s\n' \
@@ -7,6 +7,7 @@ help:
 	  '  make vm                 Build-VM aanmaken/starten' \
 	  '  make iso                ISO bouwen in de build-VM' \
 	  '  make static             Statische projectcontrole' \
+	  '  make assets             Thema-assets opnieuw genereren' \
 	  '  make test-uefi          UEFI-rooktest (live-sessie)' \
 	  '  make test-bios          BIOS-rooktest (live-sessie)' \
 	  '  make test-install-uefi  UEFI-installatietest + Btrfs snapshot/rollback' \
@@ -29,6 +30,9 @@ iso:
 
 static:
 	tests/static/check-config.sh
+
+assets:
+	python3 desktop/tools/generate-assets.py
 
 test-uefi:
 	tests/test-uefi.sh

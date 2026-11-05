@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <property name="panel-1" type="empty">
+      <property name="mode" type="uint" value="0"/>
+      <property name="position" type="string" value="p=2;x=0;y=0"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="length" type="double" value="34"/>
+      <property name="length-adjust" type="bool" value="false"/>
+      <property name="size" type="uint" value="30"/>
+      <property name="autohide-behavior" type="uint" value="0"/>
+      <property name="enable-struts" type="bool" value="false"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.83921568627450982"/>
+        <value type="double" value="0.83921568627450982"/>
+        <value type="double" value="0.83921568627450982"/>
+        <value type="double" value="1"/>
+      </property>
+      <property name="enter-opacity" type="uint" value="100"/>
+      <property name="leave-opacity" type="uint" value="100"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="2"/>
+        <value type="int" value="3"/>
+      </property>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-1" type="string" value="applicationsmenu">
+      <property name="button-title" type="string" value="LinuxBeOS"/>
+      <property name="button-icon" type="string" value="linuxbeos-logo"/>
+      <property name="show-button-title" type="bool" value="false"/>
+      <property name="show-button-icon" type="bool" value="true"/>
+      <property name="show-menu-icons" type="bool" value="true"/>
+      <property name="show-tooltips" type="bool" value="false"/>
+      <property name="small" type="bool" value="false"/>
+    </property>
+    <property name="plugin-2" type="string" value="tasklist">
+      <property name="show-labels" type="bool" value="true"/>
+      <property name="show-handle" type="bool" value="false"/>
+      <property name="show-wireframes" type="bool" value="false"/>
+      <property name="grouping" type="bool" value="false"/>
+      <property name="flat-buttons" type="bool" value="true"/>
+      <property name="show-only-minimized" type="bool" value="false"/>
+      <property name="window-scrolling" type="bool" value="false"/>
+      <property name="expand" type="bool" value="true"/>
+    </property>
+    <property name="plugin-3" type="string" value="clock">
+      <property name="mode" type="uint" value="2"/>
+      <property name="digital-time-format" type="string" value="%a %H:%M"/>
+      <property name="digital-layout" type="uint" value="0"/>
+      <property name="show-seconds" type="bool" value="false"/>
+      <property name="tooltip-format" type="string" value="%A %d %B %Y"/>
+    </property>
+  </property>
+</channel>

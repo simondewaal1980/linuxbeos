@@ -100,6 +100,8 @@ doordat de live-build-pakketcache bewaard blijft.
 | `build/live-build/config/includes.chroot/` | bestanden in de live-ISO |
 | `installer/calamares/` | Calamares-configuratie; de build kopieert die naar `/etc/calamares` en `/etc/calamares-auto` |
 | `btrfs/` | Snapper-config, GRUB-snapshotgenerator, rollback- en testscripts; de build kopieert die naar de ISO |
+| `desktop/` | xfwm4-, GTK-, icoon-, cursor- en achtergrondassets; de build kopieert die naar de ISO |
+| `overlays/` | xfconf-standaardwaarden, LightDM-greeterconfiguratie en themascripts; de build kopieert die naar de ISO |
 
 De GRUB-override is nodig omdat live-build 20250814 `insmod efi_uga` doet,
 terwijl GRUB 2.14 in Debian Sid die module niet meer levert. Zonder override
@@ -108,6 +110,32 @@ stopt de UEFI-boot voordat het menu verschijnt. De override zet ook
 
 Pas je iets aan, dan is een nieuwe `scripts/10-build-iso.sh` voldoende. De
 buildmap wordt standaard schoon opgebouwd; de pakketcache blijft bewaard.
+
+## Thema-assets (fase 3)
+
+De thema-assets staan als bron in `desktop/`. De meeste zijn klaar voor
+gebruik (SVG's en PNG's). De xfwm4-afbeeldingen, de Xcursor-bestanden en de
+achtergronden worden gegenereerd met:
+
+```sh
+python3 desktop/tools/generate-assets.py
+```
+
+Dit vereist Python 3 met Pillow, ImageMagick (`convert`) en `xcursorgen` op
+de host. De gegenereerde bestanden worden mee gecommit, zodat de ISO-build
+zelf geen renderprogramma's nodig heeft. Wijzig je een asset, genereer
+opnieuw en commit zowel de bron als het resultaat.
+
+De build plaatst daarna:
+
+- `/usr/share/themes/LinuxBeOS/` (xfwm4 + GTK2 + GTK3);
+- `/usr/share/icons/LinuxBeOS/` (iconen en cursors);
+- `/usr/share/backgrounds/linuxbeos/` (bureaublad en greeter);
+- `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/` (standaardwaarden);
+- `/etc/lightdm/lightdm-gtk-greeter.conf.d/99-linuxbeos.conf`.
+
+De chroot-hook `0300-theme.chroot` werkt de caches bij. Zie
+[theme.md](theme.md) voor ontwerp, licenties en de visuele checklist.
 
 ## Rooktesten
 
@@ -121,6 +149,7 @@ Headless (standaard) wachten ze op de regel:
 
 ```
 LINUXBEOS_SMOKE session=xfce network=connected
+LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok
 ```
 
 in `tests/vm/<uefi|bios>/serial.log`. Bij succes wordt een screenshot gemaakt
@@ -134,7 +163,14 @@ tests/test-uefi.sh --gui            # QEMU-venster; sluit het om af te ronden
 tests/test-uefi.sh --iso path.iso   # andere ISO testen
 tests/test-uefi.sh --timeout 600    # langere timeout
 tests/test-uefi.sh --keep           # testmap bewaren
+tests/test-uefi.sh --skip-theme     # diagnose zonder themacontrole
+tests/test-uefi.sh --no-demo        # geen terminal/Thunar voor de vensterscreenshot
 ```
+
+De test maakt twee screenshots: `screenshot.png` van het bureaublad en
+`screenshot-windows.png` met de testvensters van `linuxbeos-theme-demo`.
+Die laatste wordt alleen geopend als de VM het SMBIOS-seriënnummer
+`LINUXBEOS-THEME-DEMO` heeft; `--no-demo` schakelt dat uit.
 
 ## Installatietests (fase 2)
 
@@ -201,6 +237,12 @@ De live-sessie logt automatisch in als `live`. Controleer:
 - Firefox ESR opent een pagina
 - `nmcli -t -f STATE general` geeft `connected`
 - `pipewire`/`wpctl status` tonen een audioserver
+- Vensters hebben de gele BeOS-tab en de knoppen links/rechts
+- De Deskbar staat rechtsboven met menu, vensterlijst en klok
+- De achtergrond, iconen en cursor zijn van LinuxBeOS
+- `xfconf-query -c xfwm4 -p /general/theme` geeft `LinuxBeOS`
+
+De volledige visuele checklist staat in [theme.md](theme.md).
 
 ## Opruimen
 

@@ -16,6 +16,13 @@ xfce4
 xfce4-terminal
 thunar
 
+# Thema-ondersteuning (fase 3)
+adwaita-icon-theme
+hicolor-icon-theme
+librsvg2-common
+desktop-file-utils
+shared-mime-info
+
 # Netwerk
 network-manager
 network-manager-applet

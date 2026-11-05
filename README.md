@@ -4,12 +4,16 @@ Een Linux-distributie met een BeOS 5-geïnspireerde desktop, gebouwd op
 Debian Sid. Dit is de werknaam; de definitieve naam kan later via
 `config/project.conf` worden gewijzigd.
 
-> **Status:** fase 0, 1 en 2 zijn gereed. De ISO installeert via Calamares op
+> **Status:** fase 0, 1, 2 en 3 zijn gereed. De ISO installeert via Calamares op
 > Btrfs met subvolumes, Snapper-snapshots en een GRUB-menu met snapshots.
-> De geautomatiseerde test bewijst snapshot-boot en rollback op UEFI én BIOS.
-> Zie [docs/development-progress.md](docs/development-progress.md) en
-> [docs/btrfs-layout.md](docs/btrfs-layout.md). Volgende stap: fase 3
-> (BeOS 5-thema).
+> De live-sessie start out-of-the-box met het BeOS 5-thema: gele titeltab,
+> GTK-thema, deskbar rechtsboven, eigen iconen, cursor en achtergrond. Het
+> geïnstalleerde systeem neemt dezelfde look over.
+> De geautomatiseerde tests bewijzen snapshot-boot en rollback op UEFI én BIOS
+> en controleren het thema via een seriële marker, ook op het doelsysteem.
+> Zie [docs/development-progress.md](docs/development-progress.md),
+> [docs/btrfs-layout.md](docs/btrfs-layout.md) en
+> [docs/theme.md](docs/theme.md). Volgende stap: fase 4 (volledige integratie).
 
 ## Uitgangspunten
 
@@ -101,13 +105,29 @@ testaanpak.
 Zie [docs/btrfs-layout.md](docs/btrfs-layout.md) voor de indeling, de
 Snapper-configuratie en de rollbackprocedure.
 
+## Wat fase 3 toevoegt
+
+- Een eigen xfwm4-thema met de kenmerkende gele BeOS-titeltab, sluitknop links
+  en zoomknop rechts
+- Een GTK2/GTK3-thema met BeOS-grijstinten, vlakke widgets en rechte randen
+- Een Deskbar rechtsboven: applicatiemenu met eigen logo, vensterlijst en klok
+- Een eigen SVG-icoonthema, Xcursor-thema en LinuxBeOS-achtergrond
+- LightDM-greeter, terminalprofiel en Liberation-lettertypen als open
+  alternatief voor de BeOS-systeemfont
+- Een automatische themacontrole die `LINUXBEOS_THEME ok ...` naar de seriële
+  console schrijft; de rooktesten op UEFI en BIOS vereisen deze marker
+- Een statische controle van alle themabestanden, symlinks en xfconf-waarden
+
+Zie [docs/theme.md](docs/theme.md) voor het ontwerp, de bekende beperkingen,
+de licenties en de visuele checklist.
+
 ## Repository-indeling
 
 ```
 config/project.conf       centrale naam, versie, mirror, VM-instellingen
 build/live-build/         live-build auto/config, pakketlijsten, hooks, includes
-overlays/                 bestanden over het live-systeem (latere fasen)
-desktop/                  thema-assets (fase 3)
+overlays/                 xfconf-standaardwaarden, LightDM en themascripts (fase 3)
+desktop/                  xfwm4-, GTK-, icoon- en cursorassets (fase 3)
 installer/calamares/      installer-configuratie (fase 1)
 btrfs/                    subvolumes, Snapper, GRUB-snapshots en rollback (fase 2)
 scripts/                  hostcontrole, build-VM, ISO-bouw
@@ -123,3 +143,4 @@ docs/                     architectuur, buildhandleiding, voortgang
 - [Buildhandleiding](docs/build-guide.md)
 - [Probleemoplossing](docs/troubleshooting.md)
 - [Btrfs-layout (fase 2)](docs/btrfs-layout.md)
+- [BeOS-thema (fase 3)](docs/theme.md)

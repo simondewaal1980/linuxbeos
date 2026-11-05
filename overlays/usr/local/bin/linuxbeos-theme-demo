@@ -1,0 +1,32 @@
+#!/bin/sh
+# Testhulp voor de visuele fase 3-checklist.
+#
+# Opent alleen in een VM met het SMBIOS-seriënnummer LINUXBEOS-THEME-DEMO een
+# terminal en Thunar, zodat de QEMU-screenshot de vensterdecoratie, de
+# Deskbar en de pictogrammen laat zien. In een normale live-sessie of op het
+# geïnstalleerde systeem doet dit script niets.
+set -eu
+
+# Alleen in de live-sessie; op het geïnstalleerde systeem is deze hulp niet
+# nodig en zou hij alleen onnodig sudo vragen.
+[ -d /run/live ] || exit 0
+
+serial=""
+if [ -r /sys/class/dmi/id/product_serial ]; then
+  serial="$(cat /sys/class/dmi/id/product_serial 2>/dev/null || true)"
+fi
+if [ -z "$serial" ] && command -v sudo >/dev/null 2>&1; then
+  serial="$(sudo -n dmidecode -s system-serial-number 2>/dev/null || true)"
+fi
+[ "$serial" = "LINUXBEOS-THEME-DEMO" ] || exit 0
+
+# Geef de rooktest eerst de kans om het kale bureaublad vast te leggen.
+sleep 15
+
+if command -v thunar >/dev/null 2>&1; then
+  thunar "$HOME" >/dev/null 2>&1 &
+  sleep 1
+fi
+if command -v xfce4-terminal >/dev/null 2>&1; then
+  xfce4-terminal --geometry=88x20+40+50 >/dev/null 2>&1 &
+fi

@@ -1,0 +1,55 @@
+# LinuxBeOS GTK2-thema
+#
+# Bewust eenvoudig: geen pixmap-engine, alleen vlakke kleuren en lijnen.
+# Zo blijft het thema werken zonder extra GTK2-engines.
+
+gtk-color-scheme = "bg_color:#d6d6d6\nfg_color:#101010\nbase_color:#ffffff\ntext_color:#101010\nselected_bg_color:#3366cc\nselected_fg_color:#ffffff\ntooltip_bg_color:#fff7a8\ntooltip_fg_color:#101010"
+
+style "linuxbeos-default"
+{
+  xthickness = 2
+  ythickness = 2
+  font_name = "Liberation Sans 10"
+
+  fg[NORMAL]        = "#101010"
+  fg[PRELIGHT]      = "#101010"
+  fg[ACTIVE]        = "#101010"
+  fg[SELECTED]      = "#ffffff"
+  fg[INSENSITIVE]   = "#808080"
+
+  bg[NORMAL]        = "#d6d6d6"
+  bg[PRELIGHT]      = "#eeeeee"
+  bg[ACTIVE]        = "#c4c4c4"
+  bg[SELECTED]      = "#3366cc"
+  bg[INSENSITIVE]   = "#e4e4e4"
+
+  base[NORMAL]      = "#ffffff"
+  base[PRELIGHT]    = "#eeeeee"
+  base[ACTIVE]      = "#c4c4c4"
+  base[SELECTED]    = "#3366cc"
+  base[INSENSITIVE] = "#e4e4e4"
+
+  text[NORMAL]      = "#101010"
+  text[PRELIGHT]    = "#101010"
+  text[ACTIVE]      = "#101010"
+  text[SELECTED]    = "#ffffff"
+  text[INSENSITIVE] = "#808080"
+}
+
+class "GtkWidget" style "linuxbeos-default"
+class "GtkButton" style "linuxbeos-default"
+class "GtkEntry" style "linuxbeos-default"
+class "GtkMenu" style "linuxbeos-default"
+class "GtkMenuItem" style "linuxbeos-default"
+class "GtkNotebook" style "linuxbeos-default"
+class "GtkTreeView" style "linuxbeos-default"
+class "GtkToolbar" style "linuxbeos-default"
+
+style "linuxbeos-tooltips"
+{
+  bg[NORMAL] = "#fff7a8"
+  fg[NORMAL] = "#101010"
+}
+
+widget "gtk-tooltip*" style "linuxbeos-tooltips"
+widget "gtk-tooltips*" style "linuxbeos-tooltips"

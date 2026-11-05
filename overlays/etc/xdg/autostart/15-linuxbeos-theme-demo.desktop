@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LinuxBeOS theme demo
+Comment=Opent in de test-VM een terminal en Thunar voor de visuele checklist
+Exec=/usr/local/bin/linuxbeos-theme-demo
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

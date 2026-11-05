@@ -152,6 +152,47 @@ install -d -m 0755 "$INCLUDES/etc/linuxbeos"
 } > "$INCLUDES/etc/linuxbeos/btrfs.conf"
 chmod 0644 "$INCLUDES/etc/linuxbeos/btrfs.conf"
 
+step "BeOS-thema en desktopconfiguratie klaarzetten"
+# De thema-assets staan één keer in desktop/ en de xfconf-standaardwaarden in
+# overlays/. Beide worden hier in de live-build-includes geplaatst, zodat de
+# live-sessie en (via unpackfs) het doelsysteem dezelfde look krijgen.
+DESKTOP_SRC="$PROJECT_ROOT/desktop"
+OVERLAYS_SRC="$PROJECT_ROOT/overlays"
+[[ -f "$DESKTOP_SRC/xfwm4/themerc" ]] || die "desktop/xfwm4/themerc ontbreekt"
+[[ -d "$OVERLAYS_SRC/etc/xdg" ]] || die "overlays/etc/xdg ontbreekt"
+
+THEME_DEST="$INCLUDES/usr/share/themes/LinuxBeOS"
+ICON_DEST="$INCLUDES/usr/share/icons/LinuxBeOS"
+BACKGROUND_DEST="$INCLUDES/usr/share/backgrounds/linuxbeos"
+
+rm -rf "$THEME_DEST" "$ICON_DEST" "$BACKGROUND_DEST"
+install -d -m 0755 "$THEME_DEST" "$ICON_DEST" "$BACKGROUND_DEST"
+
+# xfwm4-thema (PNG + XPM-fallback) en GTK2/GTK3-thema in één themamap.
+cp -a "$DESKTOP_SRC/xfwm4" "$THEME_DEST/xfwm4"
+cp -a "$DESKTOP_SRC/gtk/gtk-2.0" "$THEME_DEST/gtk-2.0"
+cp -a "$DESKTOP_SRC/gtk/gtk-3.0" "$THEME_DEST/gtk-3.0"
+install -m 0644 "$DESKTOP_SRC/gtk/index.theme" "$THEME_DEST/index.theme"
+
+# Iconen en cursors delen dezelfde XDG-iconmap.
+cp -a "$DESKTOP_SRC/icons/LinuxBeOS/." "$ICON_DEST/"
+cp -a "$DESKTOP_SRC/cursors/LinuxBeOS/." "$ICON_DEST/"
+
+install -m 0644 "$DESKTOP_SRC/backgrounds/linuxbeos-wallpaper.png" \
+  "$BACKGROUND_DEST/linuxbeos-wallpaper.png"
+install -m 0644 "$DESKTOP_SRC/backgrounds/linuxbeos-greeter.png" \
+  "$BACKGROUND_DEST/linuxbeos-greeter.png"
+
+# Licentie en herkomstdocumentatie mee in de ISO.
+install -d -m 0755 "$INCLUDES/usr/share/doc/linuxbeos-theme"
+install -m 0644 "$DESKTOP_SRC/LICENSE" "$INCLUDES/usr/share/doc/linuxbeos-theme/LICENSE"
+install -m 0644 "$DESKTOP_SRC/NOTICE.md" "$INCLUDES/usr/share/doc/linuxbeos-theme/NOTICE.md"
+
+# xfconf-standaardwaarden, LightDM-greeter en thema-controlescripts.
+cp -a "$OVERLAYS_SRC/." "$INCLUDES/"
+find "$INCLUDES/usr/local/bin" -type f -exec chmod 0755 {} + 2>/dev/null || true
+find "$INCLUDES/etc/xdg/autostart" -type f -name '*.desktop' -exec chmod 0644 {} + 2>/dev/null || true
+
 export DEBIAN_FRONTEND=noninteractive
 export LC_ALL=C
 
