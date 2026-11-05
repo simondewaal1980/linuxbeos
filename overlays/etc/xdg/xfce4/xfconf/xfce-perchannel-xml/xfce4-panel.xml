@@ -13,13 +13,9 @@
       <property name="size" type="uint" value="30"/>
       <property name="autohide-behavior" type="uint" value="0"/>
       <property name="enable-struts" type="bool" value="false"/>
-      <property name="background-style" type="uint" value="1"/>
-      <property name="background-rgba" type="array">
-        <value type="double" value="0.83921568627450982"/>
-        <value type="double" value="0.83921568627450982"/>
-        <value type="double" value="0.83921568627450982"/>
-        <value type="double" value="1"/>
-      </property>
+      <!-- Laat de Deskbar de kleuren van het actieve GTK-thema volgen. Een
+           vaste lichte paneelkleur zou in LinuxBeOS-Dark blijven staan. -->
+      <property name="background-style" type="uint" value="0"/>
       <property name="enter-opacity" type="uint" value="100"/>
       <property name="leave-opacity" type="uint" value="100"/>
       <property name="plugin-ids" type="array">

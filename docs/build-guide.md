@@ -48,7 +48,26 @@ scripts/01-create-build-vm.sh --delete
 De cloud-init-seed bevat de publieke SSH-sleutel en het build-wachtwoord.
 Beide staan alleen in `.build/` (niet in git).
 
-## ISO bouwen
+## Eén commando: release bouwen en testen
+
+```sh
+scripts/20-build-release.sh
+```
+
+Dit is de aanbevolen route. Het script draait de hostcontrole, bouwt de ISO,
+controleert de SHA256 en draait automatisch de statische controle en de
+UEFI/BIOS-rooktesten. Daarna schrijft het `dist/release-info.txt` en
+`dist/release-matrix.txt`.
+
+```sh
+scripts/20-build-release.sh --full   # plus Btrfs-installatie en rollback
+scripts/20-build-release.sh --skip-build  # bestaande ISO opnieuw testen
+```
+
+Dezelfde keten via `make release` en `make release-full`. Zie
+[release.md](release.md) voor het volledige releaseproces.
+
+## ISO bouwen (los)
 
 ```sh
 scripts/10-build-iso.sh
@@ -129,6 +148,7 @@ opnieuw en commit zowel de bron als het resultaat.
 De build plaatst daarna:
 
 - `/usr/share/themes/LinuxBeOS/` (xfwm4 + GTK2 + GTK3);
+- `/usr/share/themes/LinuxBeOS-Dark/` (donkere GTK2 + GTK3);
 - `/usr/share/icons/LinuxBeOS/` (iconen en cursors);
 - `/usr/share/backgrounds/linuxbeos/` (bureaublad en greeter);
 - `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/` (standaardwaarden);
@@ -149,7 +169,7 @@ Headless (standaard) wachten ze op de regel:
 
 ```
 LINUXBEOS_SMOKE session=xfce network=connected
-LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok
+LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok skel=ok xdg=ok dark=ok
 ```
 
 in `tests/vm/<uefi|bios>/serial.log`. Bij succes wordt een screenshot gemaakt
@@ -220,6 +240,26 @@ tests/test-install-uefi.sh --iso path.iso
 De test faalt voortaan binnen enkele minuten als de autoinstall-hulp niet
 start; het wachten op de eigenlijke installatie heeft een ruime maar
 begrensde timeout.
+
+## Releasematrix
+
+```sh
+tests/release-matrix.sh
+```
+
+De matrix is de releasegate en draait:
+
+1. de statische projectcontrole;
+2. de UEFI- en BIOS-rooktest (sessie, netwerk, thema en `/etc/skel`);
+3. de UEFI- en BIOS-installatie op Btrfs;
+4. het thema op het geïnstalleerde systeem;
+5. snapshot maken, snapshot-boot en rollback met behoud van `/home`;
+6. de vergelijking “geïnstalleerd systeem = live-look”.
+
+Het resultaat staat in `dist/release-matrix.txt`; bij een ontbrekende marker
+stopt de matrix met een fout. Met `--keep` blijven de qcow2-schijven,
+logboeken en screenshots onder `tests/vm/` bewaard. Zie
+[release.md](release.md) voor de volledige releaseprocedure.
 
 ## Handmatige controle
 

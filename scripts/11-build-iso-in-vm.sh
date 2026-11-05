@@ -152,6 +152,25 @@ install -d -m 0755 "$INCLUDES/etc/linuxbeos"
 } > "$INCLUDES/etc/linuxbeos/btrfs.conf"
 chmod 0644 "$INCLUDES/etc/linuxbeos/btrfs.conf"
 
+step "Shell- en software-identiteit klaarzetten"
+# De ZSH-prompt leest de distronaam/versie uit identity.conf. De chroot-hook
+# 0400-apps.chroot leest software.conf voor de vastgepinde opencode-versie.
+install -d -m 0755 "$INCLUDES/etc/linuxbeos"
+{
+  printf 'LINUXBEOS_NAME="%s"\n' "$DISTRO_NAME"
+  printf 'LINUXBEOS_VERSION="%s"\n' "$DISTRO_VERSION"
+  printf 'LINUXBEOS_TAGLINE="%s"\n' "$DISTRO_TAGLINE"
+} > "$INCLUDES/etc/linuxbeos/identity.conf"
+chmod 0644 "$INCLUDES/etc/linuxbeos/identity.conf"
+{
+  printf 'OPENCODE_VERSION="%s"\n' "$OPENCODE_VERSION"
+  printf 'OPENCODE_SHA256_AMD64="%s"\n' "$OPENCODE_SHA256_AMD64"
+  printf 'OPENCODE_URL_AMD64="%s"\n' "$OPENCODE_URL_AMD64"
+  printf 'GOOGLE_CHROME_CHANNEL="%s"\n' "$GOOGLE_CHROME_CHANNEL"
+  printf 'GOOGLE_CHROME_REPO="%s"\n' "$GOOGLE_CHROME_REPO"
+} > "$INCLUDES/etc/linuxbeos/software.conf"
+chmod 0644 "$INCLUDES/etc/linuxbeos/software.conf"
+
 step "BeOS-thema en desktopconfiguratie klaarzetten"
 # De thema-assets staan één keer in desktop/ en de xfconf-standaardwaarden in
 # overlays/. Beide worden hier in de live-build-includes geplaatst, zodat de
@@ -159,20 +178,28 @@ step "BeOS-thema en desktopconfiguratie klaarzetten"
 DESKTOP_SRC="$PROJECT_ROOT/desktop"
 OVERLAYS_SRC="$PROJECT_ROOT/overlays"
 [[ -f "$DESKTOP_SRC/xfwm4/themerc" ]] || die "desktop/xfwm4/themerc ontbreekt"
+[[ -f "$DESKTOP_SRC/gtk/dark/gtk-3.0/gtk.css" ]] || die "donker GTK-thema ontbreekt"
 [[ -d "$OVERLAYS_SRC/etc/xdg" ]] || die "overlays/etc/xdg ontbreekt"
 
 THEME_DEST="$INCLUDES/usr/share/themes/LinuxBeOS"
+THEME_DARK_DEST="$INCLUDES/usr/share/themes/LinuxBeOS-Dark"
 ICON_DEST="$INCLUDES/usr/share/icons/LinuxBeOS"
 BACKGROUND_DEST="$INCLUDES/usr/share/backgrounds/linuxbeos"
 
-rm -rf "$THEME_DEST" "$ICON_DEST" "$BACKGROUND_DEST"
-install -d -m 0755 "$THEME_DEST" "$ICON_DEST" "$BACKGROUND_DEST"
+rm -rf "$THEME_DEST" "$THEME_DARK_DEST" "$ICON_DEST" "$BACKGROUND_DEST"
+install -d -m 0755 "$THEME_DEST" "$THEME_DARK_DEST" "$ICON_DEST" "$BACKGROUND_DEST"
 
 # xfwm4-thema (PNG + XPM-fallback) en GTK2/GTK3-thema in één themamap.
 cp -a "$DESKTOP_SRC/xfwm4" "$THEME_DEST/xfwm4"
 cp -a "$DESKTOP_SRC/gtk/gtk-2.0" "$THEME_DEST/gtk-2.0"
 cp -a "$DESKTOP_SRC/gtk/gtk-3.0" "$THEME_DEST/gtk-3.0"
 install -m 0644 "$DESKTOP_SRC/gtk/index.theme" "$THEME_DEST/index.theme"
+
+# Donkere GTK-variant. Het vensterdecoratie- en icoonthema blijven gelijk;
+# alleen de GTK-kleuren verschillen, zodat de gele BeOS-tab herkenbaar blijft.
+cp -a "$DESKTOP_SRC/gtk/dark/gtk-2.0" "$THEME_DARK_DEST/gtk-2.0"
+cp -a "$DESKTOP_SRC/gtk/dark/gtk-3.0" "$THEME_DARK_DEST/gtk-3.0"
+install -m 0644 "$DESKTOP_SRC/gtk/dark/index.theme" "$THEME_DARK_DEST/index.theme"
 
 # Iconen en cursors delen dezelfde XDG-iconmap.
 cp -a "$DESKTOP_SRC/icons/LinuxBeOS/." "$ICON_DEST/"
@@ -192,6 +219,22 @@ install -m 0644 "$DESKTOP_SRC/NOTICE.md" "$INCLUDES/usr/share/doc/linuxbeos-them
 cp -a "$OVERLAYS_SRC/." "$INCLUDES/"
 find "$INCLUDES/usr/local/bin" -type f -exec chmod 0755 {} + 2>/dev/null || true
 find "$INCLUDES/etc/xdg/autostart" -type f -name '*.desktop' -exec chmod 0644 {} + 2>/dev/null || true
+chmod 0644 "$INCLUDES/etc/skel/.zshrc" "$INCLUDES/etc/zsh/linuxbeos.zsh" 2>/dev/null || true
+
+# Fase 4: nieuwe gebruikers krijgen de LinuxBeOS-look ook als user-level
+# Xfconf-configuratie via /etc/skel. De systeemwaarden onder /etc/xdg blijven
+# de bron van waarheid; deze kopie zorgt ervoor dat de panelindeling, het
+# vensterdecoratie- en het icoonthema ook voor een later aangemaakte
+# gebruiker direct kloppen. Calamares' users-module kopieert /etc/skel naar
+# de nieuwe home, waardoor het geïnstalleerde systeem dezelfde look heeft.
+SKEL_XFCE="$INCLUDES/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml"
+install -d -m 0755 "$SKEL_XFCE"
+for xml in "$INCLUDES"/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/*.xml; do
+  [[ -f "$xml" ]] || continue
+  install -m 0644 "$xml" "$SKEL_XFCE/$(basename "$xml")"
+done
+find "$INCLUDES/etc/skel/.config" -type d -exec chmod 0755 {} + 2>/dev/null || true
+find "$INCLUDES/etc/skel/.config" -type f -exec chmod 0644 {} + 2>/dev/null || true
 
 export DEBIAN_FRONTEND=noninteractive
 export LC_ALL=C

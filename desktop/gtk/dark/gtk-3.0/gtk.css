@@ -1,0 +1,499 @@
+/* LinuxBeOS Dark GTK3-thema
+ *
+ * Donkere variant van het LinuxBeOS/BeOS R5-thema: dezelfde vlakke widgets,
+ * scherpe randen en gele actieve tab, maar met een donkergrijs venster- en
+ * invoeroppervlak. Alle kleuren zijn eigen keuzes; er zijn geen BeOS- of
+ * Haiku-assets overgenomen.
+ */
+
+@define-color theme_bg_color #303030;
+@define-color theme_fg_color #e8e8e8;
+@define-color theme_base_color #202020;
+@define-color theme_text_color #e8e8e8;
+@define-color theme_selected_bg_color #3366cc;
+@define-color theme_selected_fg_color #ffffff;
+@define-color theme_insensitive_bg_color #3a3a3a;
+@define-color theme_insensitive_fg_color #7c7c7c;
+@define-color theme_tooltip_bg_color #4d4518;
+@define-color theme_tooltip_fg_color #fff7a8;
+@define-color borders #141414;
+@define-color unfocused_borders #4a4a4a;
+@define-color beos_bevel_light #4f4f4f;
+@define-color beos_bevel_dark #1c1c1c;
+@define-color beos_tab #f5e64b;
+@define-color beos_tab_dark #c9b93a;
+
+* {
+  outline-color: alpha(@theme_fg_color, 0.45);
+  outline-style: dotted;
+  outline-width: 1px;
+  outline-offset: -3px;
+}
+
+.background,
+window,
+dialog,
+.background:backdrop {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+}
+
+label,
+label:backdrop {
+  color: @theme_fg_color;
+}
+
+label:disabled {
+  color: @theme_insensitive_fg_color;
+}
+
+/* Knoppen: vlak met een 1px donkere rand en lichte/donkere bevel. */
+button,
+.button {
+  min-height: 20px;
+  min-width: 16px;
+  padding: 2px 6px;
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-image: none;
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light, inset -1px -1px @beos_bevel_dark;
+  text-shadow: none;
+}
+
+button:hover,
+.button:hover {
+  background-color: #3b3b3b;
+}
+
+button:active,
+.button:active,
+button:checked,
+.button:checked {
+  background-color: #242424;
+  box-shadow: inset 1px 1px @beos_bevel_dark, inset -1px -1px @beos_bevel_light;
+}
+
+button:disabled,
+.button:disabled {
+  background-color: @theme_insensitive_bg_color;
+  color: @theme_insensitive_fg_color;
+  box-shadow: none;
+}
+
+button.default,
+button.suggested-action {
+  border-color: #4d74c4;
+  background-color: #2b3a55;
+}
+
+button.destructive-action {
+  border-color: #b25a5a;
+  background-color: #4a2525;
+}
+
+/* Invoervelden: wit, scherp en met een donkere rand. */
+entry,
+entry.flat,
+spinbutton,
+textview text,
+textview,
+.view,
+iconview,
+treeview.view {
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+  box-shadow: inset 1px 1px rgba(0, 0, 0, 0.12);
+  padding: 2px 4px;
+}
+
+entry:focus,
+spinbutton:focus,
+textview text:focus {
+  border-color: @theme_selected_bg_color;
+}
+
+entry:disabled,
+spinbutton:disabled {
+  background-color: @theme_insensitive_bg_color;
+  color: @theme_insensitive_fg_color;
+}
+
+entry selection,
+textview text selection,
+label selection {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+/* Menu's en menubalken. */
+menubar,
+.menubar {
+  background-color: @theme_bg_color;
+  border-bottom: 1px solid @beos_bevel_dark;
+  box-shadow: inset 0 1px @beos_bevel_light;
+  padding: 0;
+}
+
+menubar > menuitem,
+.menubar > menuitem {
+  padding: 1px 7px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: @theme_fg_color;
+}
+
+menubar > menuitem:hover,
+.menubar > menuitem:hover {
+  border-color: @borders;
+  background-color: #3b3b3b;
+  box-shadow: inset 1px 1px @beos_bevel_light, inset -1px -1px @beos_bevel_dark;
+}
+
+menu,
+.menu,
+context-menu {
+  background-color: @theme_bg_color;
+  border: 1px solid @borders;
+  border-radius: 0;
+  padding: 2px;
+  box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.35);
+}
+
+menu menuitem,
+.menu menuitem,
+.context-menu menuitem {
+  min-height: 20px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: @theme_fg_color;
+}
+
+menu menuitem:hover,
+.menu menuitem:hover,
+.context-menu menuitem:hover {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+menu menuitem:disabled,
+.menu menuitem:disabled {
+  color: @theme_insensitive_fg_color;
+}
+
+menu separator,
+.menu separator,
+separator {
+  background-color: @beos_bevel_dark;
+  border-color: @beos_bevel_light;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+/* Werkbalken en statusbalken. */
+toolbar,
+.toolbar,
+actionbar {
+  background-color: @theme_bg_color;
+  border: 1px solid @beos_bevel_dark;
+  border-radius: 0;
+  padding: 2px;
+  box-shadow: inset 1px 1px @beos_bevel_light;
+}
+
+statusbar,
+.statusbar {
+  background-color: @theme_bg_color;
+  border-top: 1px solid @beos_bevel_dark;
+  box-shadow: inset 0 1px @beos_bevel_light;
+}
+
+/* Notebooks: BeOS-tabs met een gele actieve tab. */
+notebook,
+notebook.frame {
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+}
+
+notebook > header {
+  background-color: @theme_bg_color;
+  border: none;
+  padding: 0;
+}
+
+notebook > header > tabs > tab {
+  min-height: 20px;
+  padding: 2px 10px;
+  border: 1px solid @borders;
+  border-bottom: none;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light;
+}
+
+notebook > header > tabs > tab:checked {
+  background-color: @beos_tab;
+  color: #101010;
+  box-shadow: inset 1px 1px #fff7a8;
+  font-weight: bold;
+}
+
+notebook > stack {
+  border: 1px solid @borders;
+  background-color: @theme_bg_color;
+}
+
+/* Lijsten en boomweergaven. */
+treeview.view header button,
+treeview header button {
+  padding: 1px 6px;
+  border: 1px solid @beos_bevel_dark;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light;
+}
+
+treeview.view:selected,
+treeview.view:selected:focus,
+iconview:selected,
+.view:selected {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+treeview.view:hover,
+iconview:hover {
+  background-color: #3b3b3b;
+}
+
+/* Schuifbalken: BeOS gebruikt smalle, blokkerige balken. */
+scrollbar {
+  background-color: @theme_bg_color;
+  border: 1px solid @beos_bevel_dark;
+  border-radius: 0;
+}
+
+scrollbar slider {
+  min-width: 12px;
+  min-height: 12px;
+  margin: 1px;
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light, inset -1px -1px @beos_bevel_dark;
+}
+
+scrollbar slider:hover {
+  background-color: #3b3b3b;
+}
+
+scrollbar slider:active {
+  background-color: #242424;
+  box-shadow: inset 1px 1px @beos_bevel_dark;
+}
+
+scrollbar button {
+  min-width: 12px;
+  min-height: 12px;
+  padding: 0;
+  border: 1px solid @beos_bevel_dark;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light;
+}
+
+/* Voortgang en schalen. */
+progressbar trough {
+  border: 1px solid @borders;
+  background-color: @theme_base_color;
+  border-radius: 0;
+}
+
+progressbar progress,
+progressbar progressbar {
+  background-color: @beos_tab;
+  border-radius: 0;
+}
+
+scale trough {
+  min-height: 6px;
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: #1a1a1a;
+}
+
+scale highlight {
+  background-color: @theme_selected_bg_color;
+  border-radius: 0;
+}
+
+scale slider {
+  min-width: 14px;
+  min-height: 14px;
+  margin: -5px;
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light, inset -1px -1px @beos_bevel_dark;
+}
+
+checkbutton check,
+radiobutton radio {
+  min-width: 14px;
+  min-height: 14px;
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_base_color;
+  box-shadow: inset 1px 1px rgba(0, 0, 0, 0.15);
+}
+
+radiobutton radio {
+  border-radius: 8px;
+}
+
+checkbutton check:checked,
+radiobutton radio:checked {
+  background-color: @theme_selected_bg_color;
+  border-color: #6f97e8;
+}
+
+switch {
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @beos_bevel_dark;
+}
+
+switch:checked {
+  background-color: @theme_selected_bg_color;
+}
+
+switch slider {
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_bg_color;
+  box-shadow: inset 1px 1px @beos_bevel_light;
+}
+
+/* Panelen en deskbar. */
+.xfce4-panel,
+panel,
+.panel {
+  background-color: @theme_bg_color;
+  border: 1px solid @borders;
+  color: @theme_fg_color;
+}
+
+.xfce4-panel button,
+panel button,
+.panel button {
+  min-height: 18px;
+  min-width: 18px;
+  padding: 1px 2px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.xfce4-panel button:hover,
+panel button:hover {
+  border-color: @beos_bevel_dark;
+  background-color: #3b3b3b;
+  box-shadow: inset 1px 1px @beos_bevel_light;
+}
+
+.xfce4-panel button:checked,
+panel button:checked {
+  border-color: @borders;
+  background-color: #242424;
+  box-shadow: inset 1px 1px @beos_bevel_dark;
+}
+
+/* Tooltips. */
+tooltip,
+tooltip.background {
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @theme_tooltip_bg_color;
+  color: @theme_tooltip_fg_color;
+  box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.35);
+}
+
+tooltip * {
+  color: @theme_tooltip_fg_color;
+}
+
+/* Overige vensters. */
+headerbar,
+.titlebar {
+  min-height: 26px;
+  padding: 2px 4px;
+  border: 1px solid @borders;
+  border-radius: 0;
+  background-color: @beos_tab;
+  background-image: none;
+  color: #101010;
+  box-shadow: inset 1px 1px #fff7a8, inset -1px -1px @beos_tab_dark;
+}
+
+headerbar:backdrop,
+.titlebar:backdrop {
+  background-color: #252525;
+  color: #cfcfcf;
+  box-shadow: inset 1px 1px #4f4f4f, inset -1px -1px #151515;
+}
+
+headerbar button,
+.titlebar button {
+  background-color: transparent;
+  color: #101010;
+  border: 1px solid @borders;
+  box-shadow: inset 1px 1px @beos_bevel_light, inset -1px -1px @beos_bevel_dark;
+}
+
+headerbar button:hover,
+.titlebar button:hover {
+  background-color: #fff7a8;
+  color: #101010;
+}
+
+headerbar button:active,
+headerbar button:checked,
+.titlebar button:active,
+.titlebar button:checked {
+  background-color: @beos_tab_dark;
+  color: #101010;
+  box-shadow: inset 1px 1px @borders, inset -1px -1px #fff7a8;
+}
+
+headerbar button:backdrop,
+.titlebar button:backdrop {
+  color: #cfcfcf;
+}
+
+calendar,
+.calendar {
+  border: 1px solid @borders;
+  background-color: @theme_base_color;
+}
+
+/* Voorkom afgeronde hoeken uit GTK-thema's die dit als basis gebruiken. */
+.card,
+.frame,
+.view,
+list,
+row {
+  border-radius: 0;
+}
+
+list row:selected,
+row:selected {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}

@@ -1,8 +1,9 @@
-# Calamares-installer (fase 1 en 2)
+# Calamares-installer (fase 1, 2 en 4)
 
 Deze pagina beschrijft hoe de grafische installer in LinuxBeOS is opgenomen,
 welke moduleketen wordt gebruikt en hoe de geautomatiseerde installatietest
-werkt.
+werkt. Sinds fase 4 is de branding volledig in BeOS-stijl en is het thema op
+het doelsysteem een expliciete release-eis.
 
 ## Uitgangspunten
 
@@ -77,6 +78,22 @@ De testvariant (`/etc/calamares-auto`) gebruikt:
 - een `shellprocess`-stap die het wachtwoord `testpass` zet;
 - een extra ingeschakelde dienst voor de Btrfs-rollbacktest.
 
+## Branding (fase 4)
+
+De branding staat in `installer/calamares/branding/linuxbeos/`:
+
+- `branding.desc` gebruikt het BeOS-palet: grijze zijbalk (`#d6d6d6`),
+  donkere tekst en een gele actieve tab (`#f5e64b`), met een groter
+  installatievenster (960×600).
+- `show.qml` vertelt de pijlers van de distributie: open source, Debian Sid,
+  Btrfs + Snapper en de BeOS 5-look. De slideshow gebruikt alleen tekst en
+  kleuren, zonder externe afbeeldingen of merkbestanden.
+- `logo.svg` en `welcome.svg` zijn bijgewerkt naar dezelfde grijze/gele
+  vormgeving en noemen de Btrfs-release in plaats van de oude ext4-fase.
+
+De branding wordt door `scripts/11-build-iso-in-vm.sh` meegekopieerd naar
+`/etc/calamares` en `/etc/calamares-auto`.
+
 ## Automatische acceptatietest
 
 `tests/test-install-uefi.sh` en `tests/test-install-bios.sh` starten QEMU met
@@ -119,15 +136,20 @@ LINUXBEOS_BTRFS_ROLLBACK ok number=N marker=original home=preserved
 LINUXBEOS_BTRFS_TEST done
 ```
 
-en de autologin-sessie schrijft de bestaande rookmarkering:
+en de autologin-sessie schrijft de bestaande rookmarkering plus de
+themacontrole:
 
 ```
 LINUXBEOS_SMOKE session=xfce network=connected
+LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok skel=ok xdg=ok dark=ok
 ```
 
 De test slaagt alleen als de installatie, de zelfstandige boot, de
 snapshot-boot, de rollback en de Xfce-sessie op het teruggezette systeem
-allemaal aantoonbaar zijn geslaagd.
+allemaal aantoonbaar zijn geslaagd. Sinds fase 4 is de themamarker met
+`deskbar=top-right skel=ok xdg=ok` verplicht: het geïnstalleerde systeem
+moet dezelfde look als de live-sessie hebben. `tests/release-matrix.sh`
+vat alle controles samen in `dist/release-matrix.txt`.
 
 ### Bewijs
 
@@ -140,7 +162,9 @@ allemaal aantoonbaar zijn geslaagd.
 | Boot vanaf snapshot | `LINUXBEOS_BTRFS_SNAPSHOT_BOOT ok` | idem |
 | Rollback + /home behouden | `LINUXBEOS_BTRFS_ROLLBACK ok ... home=preserved` | idem |
 | Xfce-sessie | `LINUXBEOS_SMOKE session=xfce network=connected` | idem |
+| Thema op het doel (fase 4) | `LINUXBEOS_THEME ok ... skel=ok xdg=ok dark=ok` | idem |
 | Screenshot | [phase2-installed-uefi.png](screenshots/phase2-installed-uefi.png) | [phase2-installed-bios.png](screenshots/phase2-installed-bios.png) |
+| Fase 4-screenshot | [phase4-installed-uefi.png](screenshots/phase4-installed-uefi.png) | [phase4-installed-bios.png](screenshots/phase4-installed-bios.png) |
 
 ## Handmatige installatie testen
 

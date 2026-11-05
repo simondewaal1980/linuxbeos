@@ -1,4 +1,4 @@
-# Btrfs-layout, snapshots en rollback (fase 2)
+# Btrfs-layout, snapshots en rollback (fase 2 en 4)
 
 LinuxBeOS installeert standaard op **Btrfs** met aparte subvolumes. De
 root-subvolume wordt met `compress=zstd` en `noatime` gemount; `/home` en de
@@ -177,6 +177,12 @@ LINUXBEOS_BTRFS_SNAPSHOT_BOOT ok number=N ...
 LINUXBEOS_BTRFS_ROLLBACK ok ... home=preserved
 LINUXBEOS_BTRFS_TEST done
 ```
+
+Sinds fase 4 is dit onderdeel van de releasegate. `tests/release-matrix.sh`
+draait dezelfde test op UEFI én BIOS, controleert daarnaast het thema op het
+geïnstalleerde systeem en legt alle bewijzen vast in
+`dist/release-matrix.txt`. Een release zonder `home=preserved` is niet
+toegestaan.
 
 ## Beperkingen
 

@@ -1,0 +1,66 @@
+#!/bin/sh
+# Wissel tussen de lichte en donkere LinuxBeOS GTK-variant.
+#
+# Beide thema's staan naast elkaar in /usr/share/themes en zijn ook gewoon
+# via Instellingen -> Vormgeving te kiezen. Dit commando is bedoeld voor
+# snelle wissels en voor documentatie/tests.
+set -eu
+
+usage() {
+  printf 'Gebruik: %s [light|dark|toggle|status]\n' "${0##*/}" >&2
+  exit 2
+}
+
+command -v xfconf-query >/dev/null 2>&1 || {
+  printf 'linuxbeos-theme-mode: xfconf-query ontbreekt (geen Xfce-sessie?)\n' >&2
+  exit 1
+}
+
+current="$(xfconf-query -c xsettings -p /Net/ThemeName 2>/dev/null || true)"
+mode="${1:-toggle}"
+
+case "$mode" in
+  light|dark) ;;
+  toggle)
+    if [ "$current" = "LinuxBeOS-Dark" ]; then
+      mode=light
+    else
+      mode=dark
+    fi
+    ;;
+  status)
+    printf '%s\n' "${current:-onbekend}"
+    exit 0
+    ;;
+  -h|--help)
+    usage
+    ;;
+  *)
+    usage
+    ;;
+esac
+
+case "$mode" in
+  light) theme=LinuxBeOS ;;
+  dark)  theme=LinuxBeOS-Dark ;;
+esac
+
+if [ ! -d "/usr/share/themes/$theme" ]; then
+  printf 'linuxbeos-theme-mode: thema ontbreekt: /usr/share/themes/%s\n' "$theme" >&2
+  exit 1
+fi
+
+if xfconf-query -c xsettings -p /Net/ThemeName >/dev/null 2>&1; then
+  xfconf-query -c xsettings -p /Net/ThemeName -s "$theme"
+else
+  xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s "$theme"
+fi
+
+# Laat de Deskbar met het GTK-thema meewisselen. Oudere configuraties kunnen
+# nog een vaste lichte paneelachtergrond hebben; die blijft anders in donkere
+# modus staan. background-style 0 betekent: gebruik de themakleuren.
+if xfconf-query -c xfce4-panel -p /panels/panel-1/background-style >/dev/null 2>&1; then
+  xfconf-query -c xfce4-panel -p /panels/panel-1/background-style -s 0
+fi
+
+printf 'LinuxBeOS: GTK-thema %s actief\n' "$theme"

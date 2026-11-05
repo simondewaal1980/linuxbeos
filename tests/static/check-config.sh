@@ -20,6 +20,7 @@ required_files=(
   "build/live-build/config/hooks/live/0100-services.chroot"
   "build/live-build/config/hooks/live/0200-calamares.chroot"
   "build/live-build/config/hooks/live/0300-theme.chroot"
+  "build/live-build/config/hooks/live/0400-apps.chroot"
   "build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-autologin.conf"
   "build/live-build/config/includes.chroot/etc/lightdm/lightdm.conf.d/99-linuxbeos-live.conf"
   "build/live-build/config/includes.chroot/etc/xdg/autostart/linuxbeos-session-ready.desktop"
@@ -61,6 +62,9 @@ required_files=(
   "desktop/gtk/index.theme"
   "desktop/gtk/gtk-2.0/gtkrc"
   "desktop/gtk/gtk-3.0/gtk.css"
+  "desktop/gtk/dark/index.theme"
+  "desktop/gtk/dark/gtk-2.0/gtkrc"
+  "desktop/gtk/dark/gtk-3.0/gtk.css"
   "desktop/icons/LinuxBeOS/index.theme"
   "desktop/icons/LinuxBeOS/scalable/apps/linuxbeos-logo.svg"
   "desktop/icons/LinuxBeOS/scalable/places/user-trash.svg"
@@ -76,9 +80,12 @@ required_files=(
   "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
   "overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml"
   "overlays/etc/lightdm/lightdm-gtk-greeter.conf.d/99-linuxbeos.conf"
+  "overlays/etc/zsh/linuxbeos.zsh"
+  "overlays/etc/skel/.zshrc"
   "overlays/usr/local/bin/linuxbeos-theme-apply"
   "overlays/usr/local/bin/linuxbeos-theme-check"
   "overlays/usr/local/bin/linuxbeos-theme-demo"
+  "overlays/usr/local/bin/linuxbeos-theme-mode"
   "overlays/etc/xdg/autostart/10-linuxbeos-theme-apply.desktop"
   "overlays/etc/xdg/autostart/15-linuxbeos-theme-demo.desktop"
   "overlays/etc/xdg/autostart/20-linuxbeos-theme-check.desktop"
@@ -86,13 +93,17 @@ required_files=(
   "scripts/01-create-build-vm.sh"
   "scripts/10-build-iso.sh"
   "scripts/11-build-iso-in-vm.sh"
+  "scripts/20-build-release.sh"
   "tests/test-uefi.sh"
   "tests/test-bios.sh"
   "tests/test-install-uefi.sh"
   "tests/test-install-bios.sh"
+  "tests/release-matrix.sh"
   "docs/development-progress.md"
   "docs/btrfs-layout.md"
   "docs/theme.md"
+  "docs/installation.md"
+  "docs/release.md"
 )
 for f in "${required_files[@]}"; do
   if [[ -f "$PROJECT_ROOT/$f" ]]; then
@@ -108,9 +119,11 @@ for f in \
   "build/live-build/config/hooks/live/0100-services.chroot" \
   "build/live-build/config/hooks/live/0200-calamares.chroot" \
   "build/live-build/config/hooks/live/0300-theme.chroot" \
+  "build/live-build/config/hooks/live/0400-apps.chroot" \
   "overlays/usr/local/bin/linuxbeos-theme-apply" \
   "overlays/usr/local/bin/linuxbeos-theme-check" \
   "overlays/usr/local/bin/linuxbeos-theme-demo" \
+  "overlays/usr/local/bin/linuxbeos-theme-mode" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
@@ -124,10 +137,12 @@ for f in \
   "scripts/01-create-build-vm.sh" \
   "scripts/10-build-iso.sh" \
   "scripts/11-build-iso-in-vm.sh" \
+  "scripts/20-build-release.sh" \
   "tests/test-uefi.sh" \
   "tests/test-bios.sh" \
   "tests/test-install-uefi.sh" \
   "tests/test-install-bios.sh" \
+  "tests/release-matrix.sh" \
   "tests/lib/run-vm-test.sh" \
   "tests/lib/run-install-test.sh" \
   "tests/static/check-config.sh"; do
@@ -161,9 +176,11 @@ for f in \
   "build/live-build/config/hooks/live/0100-services.chroot" \
   "build/live-build/config/hooks/live/0200-calamares.chroot" \
   "build/live-build/config/hooks/live/0300-theme.chroot" \
+  "build/live-build/config/hooks/live/0400-apps.chroot" \
   "overlays/usr/local/bin/linuxbeos-theme-apply" \
   "overlays/usr/local/bin/linuxbeos-theme-check" \
   "overlays/usr/local/bin/linuxbeos-theme-demo" \
+  "overlays/usr/local/bin/linuxbeos-theme-mode" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-session-ready" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-installer" \
   "build/live-build/config/includes.chroot/usr/local/bin/linuxbeos-autoinstall" \
@@ -451,6 +468,23 @@ if grep -q 'name="mode" type="uint" value="2"' "$PANEL_XML"; then
 else
   fail "klokmodus is niet digitaal (2)"
 fi
+if grep -q 'name="background-style" type="uint" value="0"' "$PANEL_XML" \
+   && ! grep -q 'name="background-rgba"' "$PANEL_XML"; then
+  pass "Deskbar volgt de themakleuren (geen vaste lichte achtergrond)"
+else
+  fail "Deskbar heeft een vaste achtergrond die in donkere modus licht blijft"
+fi
+if grep -q 'xfce4-panel' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-mode" \
+   && grep -q 'background-style' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-mode"; then
+  pass "thema-wissel laat de Deskbar met het GTK-thema meewisselen"
+else
+  fail "thema-wissel herstelt een vaste paneelachtergrond niet"
+fi
+if grep -q 'panel-background' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
+  pass "themacontrole bewaakt dat de Deskbar de themakleuren volgt"
+else
+  fail "themacontrole controleert de paneelachtergrond niet"
+fi
 DESKTOP_XML="$PROJECT_ROOT/overlays/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
 if grep -q 'value="/usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png"' "$DESKTOP_XML"; then
   pass "BeOS-achtergrond is de standaard"
@@ -475,16 +509,51 @@ if grep -q 'DESKTOP_SRC' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
 else
   fail "buildscript kopieert de thema-assets of overlays niet"
 fi
-if grep -q 'LINUXBEOS_THEME ok' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
-  pass "themacontrole schrijft een seriële marker"
+
+DARK_GTK3="$PROJECT_ROOT/desktop/gtk/dark/gtk-3.0/gtk.css"
+DARK_GTK2="$PROJECT_ROOT/desktop/gtk/dark/gtk-2.0/gtkrc"
+DARK_INDEX="$PROJECT_ROOT/desktop/gtk/dark/index.theme"
+if [[ -f "$DARK_GTK3" ]] && [[ -f "$DARK_GTK2" ]] && [[ -f "$DARK_INDEX" ]]; then
+  pass "donkere GTK-variant aanwezig (GTK2, GTK3 en index.theme)"
 else
-  fail "themacontrole mist de LINUXBEOS_THEME-marker"
+  fail "donkere GTK-variant mist een van de themabestanden"
+fi
+if grep -q '@define-color theme_bg_color #303030' "$DARK_GTK3" \
+   && grep -q '@define-color theme_tooltip_fg_color #fff7a8' "$DARK_GTK3" \
+   && grep -q 'gtk-color-scheme = "bg_color:#303030' "$DARK_GTK2"; then
+  pass "donkere GTK-variant gebruikt het donkergrijze BeOS-palet"
+else
+  fail "donkere GTK-variant gebruikt niet het verwachte palet"
+fi
+if grep -q 'LinuxBeOS-Dark' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q 'themes/LinuxBeOS-Dark' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
+  pass "buildscript en themacontrole kennen de donkere variant"
+else
+  fail "donkere variant is niet in build of themacontrole opgenomen"
+fi
+if grep -q 'LinuxBeOS-Dark' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-mode" \
+   && grep -q 'toggle' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-mode"; then
+  pass "thema-wisselcommando ondersteunt licht, donker en toggle"
+else
+  fail "thema-wisselcommando voor de donkere variant ontbreekt"
+fi
+if grep -q 'LINUXBEOS_THEME ok' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check" \
+   && grep -q 'dark=' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
+  pass "themacontrole schrijft een seriële marker inclusief dark=ok"
+else
+  fail "themacontrole mist de LINUXBEOS_THEME-marker of dark=ok"
 fi
 if grep -q 'THEME_REQUIRED' "$PROJECT_ROOT/tests/lib/run-vm-test.sh" \
    && grep -q 'LINUXBEOS_THEME' "$PROJECT_ROOT/tests/lib/run-vm-test.sh"; then
   pass "rooktest vereist het thema (met --skip-theme als diagnosemaatregel)"
 else
   fail "rooktest controleert het thema niet"
+fi
+if grep -q 'dark=ok' "$PROJECT_ROOT/tests/lib/run-vm-test.sh" \
+   && grep -q 'dark=ok' "$PROJECT_ROOT/tests/lib/run-install-test.sh"; then
+  pass "rook- en installatietest eisen de donkere variant (dark=ok)"
+else
+  fail "rook- of installatietest controleert de donkere variant niet"
 fi
 if [[ -f "$PROJECT_ROOT/desktop/LICENSE" ]] && [[ -f "$PROJECT_ROOT/desktop/NOTICE.md" ]]; then
   pass "licentie en herkomst van de thema-assets vastgelegd"
@@ -500,6 +569,67 @@ if grep -qxF 'librsvg2-common' "$PROJECT_ROOT/build/live-build/config/package-li
   pass "SVG-rendering (librsvg2-common) aanwezig"
 else
   fail "librsvg2-common ontbreekt in de pakketlijst"
+fi
+
+step "Shell en extra software"
+for pkg in zsh git curl ca-certificates gnupg unzip; do
+  if grep -qxF "$pkg" "$PROJECT_ROOT/build/live-build/config/package-lists/desktop.list.chroot"; then
+    pass "pakket: $pkg"
+  else
+    fail "pakket ontbreekt in desktop.list.chroot: $pkg"
+  fi
+done
+for conf in \
+  "$PROJECT_ROOT/installer/calamares/modules/users.conf" \
+  "$PROJECT_ROOT/installer/calamares/auto/modules/users.conf"; do
+  if grep -q 'shell: /bin/zsh' "$conf"; then
+    pass "ZSH als standaardshell: ${conf#"$PROJECT_ROOT/"}"
+  else
+    fail "ZSH-standaardshell ontbreekt in ${conf#"$PROJECT_ROOT/"}"
+  fi
+done
+ZSH_CONF="$PROJECT_ROOT/overlays/etc/zsh/linuxbeos.zsh"
+for needle in 'LINUXBEOS_NAME' 'vcs_info' 'git:(' 'compinit' \
+              '_linuxbeos_precmd' 'add-zsh-hook' '_linuxbeos_status_segment' \
+              'RPROMPT' 'git status --short --branch'; do
+  if grep -qF "$needle" "$ZSH_CONF"; then
+    pass "ZSH-config bevat: $needle"
+  else
+    fail "ZSH-config mist: $needle"
+  fi
+done
+if grep -qF '/etc/zsh/linuxbeos.zsh' "$PROJECT_ROOT/overlays/etc/skel/.zshrc"; then
+  pass "/etc/skel/.zshrc laadt de gedeelde ZSH-config"
+else
+  fail "/etc/skel/.zshrc laadt de gedeelde ZSH-config niet"
+fi
+APPS_HOOK="$PROJECT_ROOT/build/live-build/config/hooks/live/0400-apps.chroot"
+for needle in 'DSHELL=/bin/zsh' 'google-chrome-stable' 'OPENCODE_SHA256_AMD64' '/usr/local/bin/opencode'; do
+  if grep -qF "$needle" "$APPS_HOOK"; then
+    pass "software-hook bevat: $needle"
+  else
+    fail "software-hook mist: $needle"
+  fi
+done
+if grep -q '^OPENCODE_VERSION=' "$PROJECT_ROOT/config/project.conf" \
+   && grep -q '^OPENCODE_SHA256_AMD64=' "$PROJECT_ROOT/config/project.conf" \
+   && grep -q '^GOOGLE_CHROME_REPO=' "$PROJECT_ROOT/config/project.conf"; then
+  pass "opencode-versie, SHA256 en Chrome-repo staan in project.conf"
+else
+  fail "software-instellingen ontbreken in config/project.conf"
+fi
+if grep -q 'identity.conf' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q 'software.conf' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q 'OPENCODE_VERSION' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh"; then
+  pass "buildscript genereert shell- en software-identiteit"
+else
+  fail "buildscript genereert identity.conf/software.conf niet"
+fi
+if grep -q 'command -v "$bin"' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check" \
+   && grep -q 'google-chrome-stable' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
+  pass "sessiecontrole verifieert git, opencode en Chrome"
+else
+  fail "sessiecontrole verifieert de extra software niet"
 fi
 
 # Controleer dat alle relatieve symlinks in het icoonthema naar bestaande
@@ -567,6 +697,70 @@ if grep -qE '^[[:space:]]*set[[:space:]]+timeout=' "$PROJECT_ROOT/build/live-bui
   pass "GRUB automatische timeout ingesteld"
 else
   fail "GRUB-timeout ontbreekt; het menu blijft anders oneindig wachten"
+fi
+
+step "Fase 4: integratie en releasegate"
+BRANDING="$PROJECT_ROOT/installer/calamares/branding/linuxbeos"
+if grep -q 'SidebarBackgroundCurrent: "#f5e64b"' "$BRANDING/branding.desc" \
+   && grep -q 'SidebarBackground:        "#d6d6d6"' "$BRANDING/branding.desc"; then
+  pass "Calamares-branding gebruikt het BeOS-grijs/geel-palet"
+else
+  fail "Calamares-branding gebruikt niet het BeOS-palet"
+fi
+if grep -q 'Btrfs + Snapper' "$BRANDING/show.qml" \
+   && grep -q 'BeOS 5-look' "$BRANDING/show.qml"; then
+  pass "Calamares-slideshow vertelt de pijlers (Debian, Btrfs, BeOS)"
+else
+  fail "Calamares-slideshow mist de distributiepijlers"
+fi
+if grep -q 'fase 1' "$BRANDING/welcome.svg" 2>/dev/null \
+   || grep -qi 'ext4' "$BRANDING/welcome.svg" 2>/dev/null; then
+  fail "Calamares-welcome bevat nog een fase 1/ext4-verwijzing"
+else
+  pass "Calamares-welcome is bijgewerkt voor de Btrfs-release"
+fi
+if grep -q 'SKEL_XFCE' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh" \
+   && grep -q '/etc/skel/.config/xfce4/xfconf' "$PROJECT_ROOT/scripts/11-build-iso-in-vm.sh"; then
+  pass "buildscript plaatst xfconf-standaarden in /etc/skel"
+else
+  fail "buildscript vult /etc/skel niet met de xfconf-standaarden"
+fi
+if grep -q 'skel=' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check" \
+   && grep -q 'xdg=' "$PROJECT_ROOT/overlays/usr/local/bin/linuxbeos-theme-check"; then
+  pass "themacontrole bewijst /etc/skel- en /etc/xdg-integratie"
+else
+  fail "themacontrole controleert /etc/skel of /etc/xdg niet"
+fi
+if grep -q 'skel=ok' "$PROJECT_ROOT/tests/lib/run-vm-test.sh"; then
+  pass "rooktest eist de /etc/skel-integratie in de live-sessie"
+else
+  fail "rooktest controleert de /etc/skel-integratie niet"
+fi
+if grep -q 'geen LINUXBEOS_THEME-marker' "$PROJECT_ROOT/tests/lib/run-install-test.sh" \
+   && grep -q 'thema-integratie in het geïnstalleerde systeem' "$PROJECT_ROOT/tests/lib/run-install-test.sh"; then
+  pass "installatietest eist thema en /etc/skel-integratie op het doel"
+else
+  fail "installatietest behandelt het thema op het doel niet als release-eis"
+fi
+if grep -q '10-build-iso.sh' "$PROJECT_ROOT/scripts/20-build-release.sh" \
+   && grep -q 'release-matrix.sh' "$PROJECT_ROOT/scripts/20-build-release.sh"; then
+  pass "één-commando-release bouwt de ISO en draait de releasegate"
+else
+  fail "scripts/20-build-release.sh mist de build of de releasegate"
+fi
+if grep -q 'LINUXBEOS_BTRFS_ROLLBACK ok' "$PROJECT_ROOT/tests/release-matrix.sh" \
+   && grep -q 'LINUXBEOS_THEME ok' "$PROJECT_ROOT/tests/release-matrix.sh" \
+   && grep -q 'geïnstalleerd systeem = live-look' "$PROJECT_ROOT/tests/release-matrix.sh"; then
+  pass "releasematrix controleert thema, Btrfs-rollback en live-look"
+else
+  fail "releasematrix mist een van de releasecriteria"
+fi
+if grep -q '^release:' "$PROJECT_ROOT/Makefile" \
+   && grep -q '^release-full:' "$PROJECT_ROOT/Makefile" \
+   && grep -q '^matrix:' "$PROJECT_ROOT/Makefile"; then
+  pass "Makefile heeft release-, release-full- en matrixdoelen"
+else
+  fail "Makefile mist de release- of matrixdoelen"
 fi
 
 printf '\n'

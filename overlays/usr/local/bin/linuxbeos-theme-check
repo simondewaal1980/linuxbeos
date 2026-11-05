@@ -40,6 +40,10 @@ require_theme "$(q xsettings /Net/IconThemeName)" "LinuxBeOS" "icons"
 require_theme "$(q xsettings /Gtk/CursorThemeName)" "LinuxBeOS" "cursor"
 
 # De Deskbar moet rechtsboven staan en uit menu + vensterlijst + klok bestaan.
+# background-style=0 laat het paneel de GTK-themakleuren volgen; een vaste
+# lichte kleur zou in LinuxBeOS-Dark blijven staan.
+require_theme "$(q xfce4-panel /panels/panel-1/background-style)" "0" "panel-background"
+
 position="$(q xfce4-panel /panels/panel-1/position)"
 case "$position" in
   p=2\;*) : ;;
@@ -73,11 +77,63 @@ for f in \
   /usr/share/themes/LinuxBeOS/xfwm4/themerc \
   /usr/share/themes/LinuxBeOS/xfwm4/title-active-stretch.png \
   /usr/share/themes/LinuxBeOS/gtk-3.0/gtk.css \
+  /usr/share/themes/LinuxBeOS-Dark/gtk-2.0/gtkrc \
+  /usr/share/themes/LinuxBeOS-Dark/gtk-3.0/gtk.css \
   /usr/share/icons/LinuxBeOS/index.theme \
   /usr/share/icons/LinuxBeOS/scalable/apps/linuxbeos-logo.svg \
   /usr/share/backgrounds/linuxbeos/linuxbeos-wallpaper.png; do
   [ -f "$f" ] || fail_reason="${fail_reason}${fail_reason:+,}ontbreekt=$(basename "$f")"
 done
+
+# De donkere variant is een volwaardig tweede thema en hoort met het bijbehorende
+# wisselcommando in de ISO te zitten.
+dark="ok"
+for f in /usr/share/themes/LinuxBeOS-Dark/gtk-2.0/gtkrc \
+         /usr/share/themes/LinuxBeOS-Dark/gtk-3.0/gtk.css; do
+  [ -f "$f" ] || dark="missing"
+done
+[ -x /usr/local/bin/linuxbeos-theme-mode ] || dark="missing"
+[ "$dark" = "ok" ] || fail_reason="${fail_reason}${fail_reason:+,}dark=missing"
+
+# Fase 4: nieuwe gebruikers moeten dezelfde look krijgen via /etc/skel, en
+# het systeem moet de xfconf-standaardwaarden onder /etc/xdg hebben. Beide
+# paden worden expliciet gecontroleerd, zodat de integratie aantoonbaar is.
+SKEL_XFCE=/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+SYSTEM_XFCE=/etc/xdg/xfce4/xfconf/xfce-perchannel-xml
+skel=""
+xdg=""
+if [ -f "$SKEL_XFCE/xfce4-panel.xml" ] \
+   && [ -f "$SKEL_XFCE/xfwm4.xml" ] \
+   && [ -f "$SKEL_XFCE/xsettings.xml" ]; then
+  skel="ok"
+else
+  fail_reason="${fail_reason}${fail_reason:+,}skel=missing"
+fi
+if [ -f "$SYSTEM_XFCE/xfce4-panel.xml" ] \
+   && [ -f "$SYSTEM_XFCE/xfwm4.xml" ] \
+   && [ -f "$SYSTEM_XFCE/xsettings.xml" ]; then
+  xdg="ok"
+else
+  fail_reason="${fail_reason}${fail_reason:+,}xdg=missing"
+fi
+
+# Fase 3: ZSH-branding, git-herkenning en de meegeleverde software. De
+# gebruikersshell bewijst dat Calamares en de live-config dezelfde keuze
+# maken; de losse checks voorkomen dat een half geïnstalleerde ISO groen
+# door de rooktest komt.
+shell="ok"
+for f in /etc/zsh/linuxbeos.zsh /etc/skel/.zshrc /etc/linuxbeos/identity.conf; do
+  [ -f "$f" ] || shell="missing"
+done
+current_shell="$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)"
+[ "$current_shell" = "/bin/zsh" ] || shell="missing"
+[ "$shell" = "ok" ] || fail_reason="${fail_reason}${fail_reason:+,}shell=missing"
+
+apps="ok"
+for bin in zsh git opencode google-chrome-stable; do
+  command -v "$bin" >/dev/null 2>&1 || apps="missing"
+done
+[ "$apps" = "ok" ] || fail_reason="${fail_reason}${fail_reason:+,}apps=missing"
 
 if [ -n "$fail_reason" ]; then
   LINE="LINUXBEOS_THEME fail reason=${fail_reason}"
@@ -87,7 +143,7 @@ if [ -n "$fail_reason" ]; then
   exit 1
 fi
 
-LINE="LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok"
+LINE="LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok skel=${skel} xdg=${xdg} dark=${dark} shell=${shell} apps=${apps}"
 logger -t linuxbeos-theme "$LINE" 2>/dev/null || true
 printf '%s\n' "$LINE" | tee /dev/ttyS0 >/dev/null 2>&1 || \
   printf '%s\n' "$LINE" | sudo -n tee /dev/ttyS0 >/dev/null 2>&1 || true

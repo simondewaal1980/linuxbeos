@@ -321,13 +321,27 @@ if ! grep -aq 'LINUXBEOS_SMOKE session=xfce' "$BOOT_SERIAL" 2>/dev/null; then
   die "Xfce-sessie in het geïnstalleerde systeem ($MODE) niet bevestigd"
 fi
 
-# Fase 3: het thema moet via unpackfs ook op het doelsysteem actief zijn.
+# Fase 4: het thema moet via unpackfs én /etc/skel ook op het doelsysteem
+# actief zijn. Dit is een release-eis, geen waarschuwing: het geïnstalleerde
+# systeem moet dezelfde look als de live-sessie hebben. De themacontrole start
+# via XDG-autostart en kan enkele seconden later zijn dan de Btrfs-hulp; wacht
+# daarom kort op de marker in plaats van direct te falen.
+set +e
+wait_for_marker "$BOOT_SERIAL" "LINUXBEOS_THEME ok" 180 "$QEMU_PID"
+set -e
 THEME_MARKER="$(grep -a 'LINUXBEOS_THEME ok' "$BOOT_SERIAL" 2>/dev/null | tail -1 || true)"
 if [[ -z "$THEME_MARKER" ]]; then
-  warn "geen LINUXBEOS_THEME-marker in het geïnstalleerde systeem ($MODE)"
-else
-  ok "thema: $THEME_MARKER"
+  screenshot "$WORK/boot-failed.png" || true
+  die "geen LINUXBEOS_THEME-marker in het geïnstalleerde systeem ($MODE)"
 fi
+if [[ "$THEME_MARKER" != *"deskbar=top-right"* ]] \
+   || [[ "$THEME_MARKER" != *"skel=ok"* ]] \
+   || [[ "$THEME_MARKER" != *"xdg=ok"* ]] \
+   || [[ "$THEME_MARKER" != *"dark=ok"* ]]; then
+  screenshot "$WORK/boot-failed.png" || true
+  die "thema-integratie in het geïnstalleerde systeem ($MODE) is onvolledig: $THEME_MARKER"
+fi
+ok "thema: $THEME_MARKER"
 
 screenshot "$SCREENSHOT" || true
 
@@ -348,4 +362,7 @@ ok "geïnstalleerd systeem start zelfstandig"
 ok "marker: $(grep -a 'LINUXBEOS_SMOKE' "$BOOT_SERIAL" | tail -1)"
 ok "btrfs:  $(grep -a 'LINUXBEOS_BTRFS_ROLLBACK ok' "$BOOT_SERIAL" | tail -1)"
 ok "log:    $BOOT_SERIAL"
-(( KEEP )) && ok "testmap bewaard: $WORK"
+if (( KEEP )); then
+  ok "testmap bewaard: $WORK"
+fi
+exit 0

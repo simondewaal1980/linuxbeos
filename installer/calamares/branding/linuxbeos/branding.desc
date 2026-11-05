@@ -1,5 +1,9 @@
-# Branding voor LinuxBeOS fase 1: neutrale, herkenbare vormgeving.
-# De uiteindelijke BeOS 5-look volgt in fase 3.
+# Branding voor LinuxBeOS (fase 4): volledige BeOS 5-vormgeving.
+#
+# De kleuren volgen het LinuxBeOS-desktopthema: BeOS-grijs (#d6d6d6) met
+# de kenmerkende gele titeltab (#f5e64b) en donkere tekst. De slideshow
+# vertelt de pijlers van de distributie; er worden geen BeOS- of
+# Haiku-beeldmerken gebruikt.
 ---
 componentName: linuxbeos
 
@@ -7,7 +11,7 @@ welcomeStyleCalamares: true
 welcomeExpandingLogo: true
 
 windowExpanding: normal
-windowSize: 900px,560px
+windowSize: 960px,600px
 windowPlacement: center
 
 sidebar: widget
@@ -21,7 +25,7 @@ strings:
     versionedName:       "LinuxBeOS 0.1"
     shortVersionedName:  "LinuxBeOS 0.1"
     bootloaderEntryName: "LinuxBeOS"
-    # Geen externe urls in fase 1; de knoppen blijven daardoor verborgen.
+    # Geen externe urls; de knoppen blijven daardoor verborgen.
     productUrl:          ""
     supportUrl:          ""
     knownIssuesUrl:      ""
@@ -33,11 +37,12 @@ images:
     productLogo:    "logo.svg"
     productWelcome: "welcome.svg"
 
+# BeOS-palet: grijze zijbalk, zwarte tekst en een gele actieve tab.
 style:
-    SidebarBackground:        "#20303c"
-    SidebarText:              "#ffffff"
-    SidebarTextCurrent:       "#20303c"
-    SidebarBackgroundCurrent: "#e8b33a"
+    SidebarBackground:        "#d6d6d6"
+    SidebarText:              "#101010"
+    SidebarTextCurrent:       "#101010"
+    SidebarBackgroundCurrent: "#f5e64b"
 
 slideshow: "show.qml"
 slideshowAPI: 2

@@ -1,4 +1,4 @@
-.PHONY: all check vm iso test static assets test-uefi test-bios test-install-uefi test-install-bios clean distclean help
+.PHONY: all check vm iso release release-full matrix test static assets test-uefi test-bios test-install-uefi test-install-bios clean distclean help
 
 help:
 	@printf '%s\n' \
@@ -6,6 +6,9 @@ help:
 	  '  make check              Hostafhankelijkheden controleren' \
 	  '  make vm                 Build-VM aanmaken/starten' \
 	  '  make iso                ISO bouwen in de build-VM' \
+	  '  make release            Check + ISO + statische controle + UEFI/BIOS-rooktest' \
+	  '  make release-full       Als release, plus de volledige releasematrix (Btrfs/rollback)' \
+	  '  make matrix             Volledige releasematrix op de bestaande dist-ISO' \
 	  '  make static             Statische projectcontrole' \
 	  '  make assets             Thema-assets opnieuw genereren' \
 	  '  make test-uefi          UEFI-rooktest (live-sessie)' \
@@ -27,6 +30,15 @@ vm:
 
 iso:
 	scripts/10-build-iso.sh
+
+release:
+	scripts/20-build-release.sh
+
+release-full:
+	scripts/20-build-release.sh --full
+
+matrix:
+	tests/release-matrix.sh
 
 static:
 	tests/static/check-config.sh

@@ -1,0 +1,56 @@
+# LinuxBeOS Dark GTK2-thema
+#
+# Donkere variant van het LinuxBeOS-thema. Bewust eenvoudig: geen
+# pixmap-engine, alleen vlakke kleuren en lijnen. Zo blijft het thema werken
+# zonder extra GTK2-engines.
+
+gtk-color-scheme = "bg_color:#303030\nfg_color:#e8e8e8\nbase_color:#202020\ntext_color:#e8e8e8\nselected_bg_color:#3366cc\nselected_fg_color:#ffffff\ntooltip_bg_color:#4d4518\ntooltip_fg_color:#fff7a8"
+
+style "linuxbeos-dark-default"
+{
+  xthickness = 2
+  ythickness = 2
+  font_name = "Liberation Sans 10"
+
+  fg[NORMAL]        = "#e8e8e8"
+  fg[PRELIGHT]      = "#ffffff"
+  fg[ACTIVE]        = "#ffffff"
+  fg[SELECTED]      = "#ffffff"
+  fg[INSENSITIVE]   = "#7c7c7c"
+
+  bg[NORMAL]        = "#303030"
+  bg[PRELIGHT]      = "#3b3b3b"
+  bg[ACTIVE]        = "#242424"
+  bg[SELECTED]      = "#3366cc"
+  bg[INSENSITIVE]   = "#3a3a3a"
+
+  base[NORMAL]      = "#202020"
+  base[PRELIGHT]    = "#2a2a2a"
+  base[ACTIVE]      = "#242424"
+  base[SELECTED]    = "#3366cc"
+  base[INSENSITIVE] = "#3a3a3a"
+
+  text[NORMAL]      = "#e8e8e8"
+  text[PRELIGHT]    = "#ffffff"
+  text[ACTIVE]      = "#ffffff"
+  text[SELECTED]    = "#ffffff"
+  text[INSENSITIVE] = "#7c7c7c"
+}
+
+class "GtkWidget" style "linuxbeos-dark-default"
+class "GtkButton" style "linuxbeos-dark-default"
+class "GtkEntry" style "linuxbeos-dark-default"
+class "GtkMenu" style "linuxbeos-dark-default"
+class "GtkMenuItem" style "linuxbeos-dark-default"
+class "GtkNotebook" style "linuxbeos-dark-default"
+class "GtkTreeView" style "linuxbeos-dark-default"
+class "GtkToolbar" style "linuxbeos-dark-default"
+
+style "linuxbeos-dark-tooltips"
+{
+  bg[NORMAL] = "#4d4518"
+  fg[NORMAL] = "#fff7a8"
+}
+
+widget "gtk-tooltip*" style "linuxbeos-dark-tooltips"
+widget "gtk-tooltips*" style "linuxbeos-dark-tooltips"

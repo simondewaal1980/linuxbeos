@@ -20,7 +20,7 @@ Laatst bijgewerkt: 2026-11-05
 | 1 | Calamares standaardinstallatie (ext4) | GEREED |
 | 2 | Btrfs + subvolumes + snapshots | GEREED |
 | 3 | BeOS 5-thema op XFCE | GEREED |
-| 4 | Volledige integratie en releasegate | TODO |
+| 4 | Volledige integratie en releasegate | GEREED |
 
 ## Fase 0 — live-build-pipeline + minimale desktop
 
@@ -225,11 +225,40 @@ Deskbar, iconen, cursor en achtergrond.
 | 8 | Automatische themacontrole met `LINUXBEOS_THEME`-marker | GEREED |
 | 9 | Rooktest UEFI en BIOS met themacontrole en screenshots | GEREED |
 | 10 | Visuele checklist in `docs/theme.md` afgerond | GEREED |
+| 11 | ZSH als standaardshell voor live- en installatiegebruikers | GEREED |
+| 12 | ZSH-branding en git-herkenning via `vcs_info` | GEREED |
+| 13 | `git`, `opencode` (vastgepind + SHA256) en Google Chrome in de ISO | GEREED |
+| 14 | Sessiecontrole bewijst `shell=ok apps=ok` op UEFI én BIOS | GEREED |
+| 15 | Donkere GTK2/GTK3-variant `LinuxBeOS-Dark` + `linuxbeos-theme-mode` | GEREED |
+| 16 | Uitgebreide ZSH-prompt met status, looptijd, taken en klok | GEREED |
+
+De onderdelen 15 en 16 zijn na de fase 4-release toegevoegd. De ISO is
+opnieuw gebouwd (`46b87d4e…`, 1,7 GiB); de UEFI- én BIOS-rooktest bevestigen
+`dark=ok` in de live-sessie. De donkere bestanden zitten aantoonbaar in de
+ISO-squashfs en worden via `unpackfs` naar het doelsysteem gekopieerd. De
+volledige installatie-/releasematrix is na deze aanvulling nog niet opnieuw
+gedraaid.
+
+Na een visuele controle bleek de Deskbar in donkere modus licht te blijven:
+het paneel had een vaste BeOS-grijze achtergrond (`background-style=1`) die
+niet met het GTK-thema meewisselde. De standaard is nu `background-style=0`
+(themakleuren) en `linuxbeos-theme-mode` zet een oude vaste paneelkleur
+terug naar themavolgending. Daarmee wordt de balk bij `LinuxBeOS-Dark`
+donkergrijs; de gele titeltab, iconen en cursor blijven bewust ongewijzigd.
+De ISO is opnieuw gebouwd (`b0fa6e58…`, 1,7 GiB); de UEFI- én BIOS-rooktest
+slagen met `LINUXBEOS_THEME ok ... dark=ok shell=ok apps=ok`. De volledige
+installatie-/releasematrix is na deze bugfix niet opnieuw gedraaid.
 
 ### Acceptatiecriteria
 
 - [x] De live-sessie toont de BeOS-look zonder handmatige instellingen.
 - [x] De rooktest op UEFI en BIOS schrijft `LINUXBEOS_THEME ok ...`.
+- [x] De ZSH-prompt toont branding en git-status in repositories.
+- [x] De ZSH-prompt toont exitstatus, looptijd van trage commando's,
+  achtergrondtaken en een klok.
+- [x] De donkere GTK-variant is aanwezig en met `linuxbeos-theme-mode`
+  wisselbaar.
+- [x] `git`, `opencode` en Google Chrome zijn aanwezig in de live-sessie.
 - [x] De visuele checklist is afgerond en voorzien van screenshots.
 - [x] Licenties en beperkingen zijn gedocumenteerd.
 
@@ -238,7 +267,8 @@ Deskbar, iconen, cursor en achtergrond.
 | Controle | UEFI | BIOS |
 |---|---|---|
 | Sessiemarker | `LINUXBEOS_SMOKE session=xfce network=connected` | idem |
-| Themmarker | `LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok` | idem |
+| Themmarker | `LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok skel=ok xdg=ok shell=ok apps=ok` | idem |
+| Shell/software | `zsh` 5.9.2, `git` 2.55.0, `opencode` 1.19.5, Chrome 157.0.8103.38 | idem |
 | Bureaublad | [phase3-live-uefi.png](screenshots/phase3-live-uefi.png) | [phase3-live-bios.png](screenshots/phase3-live-bios.png) |
 | Vensters + Deskbar | [phase3-windows-uefi.png](screenshots/phase3-windows-uefi.png) | [phase3-windows-bios.png](screenshots/phase3-windows-bios.png) |
 | Geïnstalleerd systeem | [phase3-installed-uefi.png](screenshots/phase3-installed-uefi.png) — `LINUXBEOS_THEME ok` in `boot-serial.log` | idem via dezelfde installatieketen (fase 2-test) |
@@ -247,13 +277,15 @@ Deskbar, iconen, cursor en achtergrond.
 | Buildgegeven | Waarde |
 |---|---|
 | ISO | `dist/linuxbeos-0.1-amd64.iso` |
-| SHA256 | `95515c4622b902c9e8c83f6dda60c76c6f99212e0e35f64bf685a986c301015d` |
-| Grootte | 1,5 GiB |
+| SHA256 | `45e52a21a0e4fe792f8e5acd22c183b98dff32c95f1128eabcd775f11eb3b64c` |
+| Grootte | 1,7 GiB |
 | Kernel | `7.2.15+deb14-amd64` |
 | xfwm4 | 4.20.0 (Debian Sid) |
 | Thema | `LinuxBeOS` (xfwm4 + GTK2 + GTK3) |
 | Iconen/cursor | `LinuxBeOS` |
 | Lettertypen | Liberation Sans / Liberation Mono |
+| Shell | ZSH 5.9.2-1+b1 (root: bash) |
+| Extra software | git 2.55.0-1, opencode 1.19.5, Google Chrome 157.0.8103.38-1 |
 
 De live-sessie start met autologin en laadt de xfconf-standaardwaarden uit
 `/etc/xdg`. De themacontrole bevestigt de runtimewaarden en schrijft de
@@ -267,7 +299,8 @@ seriële marker. De visuele checklist en de volledige beschrijving staan in
 - **GTK:** `#d6d6d6`-achtergrond, rechte randen, 1px-bevel, gele actieve
   notebooktab, donkerblauwe terminal.
 - **Deskbar:** paneel `p=2` (rechtsboven), 34% breed, met
-  `applicationsmenu`, `tasklist` en `clock`.
+  `applicationsmenu`, `tasklist` en `clock`; de achtergrond volgt het actieve
+  GTK-thema (licht of donker).
 - **Assets:** eigen SVG-iconen met Adwaita-fallback, eigen Xcursor, eigen
   1920×1080-achtergrond, Liberation Sans/Mono.
 - **Controle:** `linuxbeos-theme-check` schrijft een seriële marker;
@@ -284,6 +317,91 @@ seriële marker. De visuele checklist en de volledige beschrijving staan in
   Haiku-bestanden of merken overgenomen; zie `desktop/NOTICE.md`.
 - Het thema wordt door `unpackfs` automatisch in het doelsysteem geplaatst.
   De expliciete integratie en de testmatrix daarvan horen bij fase 4.
+
+## Fase 4 — Volledige integratie en releasegate
+
+**Doel:** één releasecommando, een BeOS-gestijlde installer, dezelfde look op
+het doelsysteem en een volledige testmatrix als releasegate.
+
+### Checklist
+
+| # | Onderdeel | Status |
+|---|---|---|
+| 1 | Calamares-branding volledig in BeOS-stijl (kleuren, logo, slideshow met pijlers) | GEREED |
+| 2 | Thema op het doelsysteem via `/etc/skel` + xfconf-standaarden, inclusief Deskbar | GEREED |
+| 3 | Eén commando: hostcheck → build → ISO → SHA256 → automatische rooktest | GEREED |
+| 4 | Releasematrix: UEFI/BIOS × Btrfs-installatie × thema × snapshot/rollback | GEREED |
+| 5 | README, build-guide, installatiehandleiding, btrfs-layout, troubleshooting en releaseproces | GEREED |
+| 6 | Bewijs vastleggen in `dist/release-matrix.txt` en dit document | GEREED |
+
+### Acceptatiecriteria
+
+- [x] Van schone checkout tot geteste ISO met één script.
+- [x] Geïnstalleerd systeem heeft dezelfde look als de live-sessie.
+- [x] De hele testmatrix is groen.
+
+### Bewijs
+
+De volledige matrix draaide op de fase 4-ISO en schreef 32 controles, allemaal
+geslaagd:
+
+| Controle | UEFI | BIOS |
+|---|---|---|
+| Live-sessie + netwerk | `LINUXBEOS_SMOKE session=xfce network=connected` | idem |
+| Thema in de live-sessie | `LINUXBEOS_THEME ok ... deskbar=top-right wallpaper=ok skel=ok xdg=ok` | idem |
+| Installatie | `LINUXBEOS_AUTOINSTALL done` | idem |
+| Zelfstandige boot | `LINUXBEOS_INSTALLED_READY hostname=linuxbeos-standardpc` | idem |
+| Thema op het doel | `LINUXBEOS_THEME ok ... skel=ok xdg=ok` | idem |
+| Btrfs-layout | `LINUXBEOS_BTRFS_LAYOUT ok subvolumes=@,@home,@snapshots,@var_log,@var_cache,@swap fstab=subvol,compress=zstd,noatime` | idem |
+| Snapper-snapshot | `LINUXBEOS_BTRFS_SNAPSHOT ok number=2` | idem |
+| Snapshot in GRUB | `LINUXBEOS_BTRFS_GRUB ok number=2` | idem |
+| Boot vanaf snapshot | `LINUXBEOS_BTRFS_SNAPSHOT_BOOT ok number=2 subvol=/@snapshots/2/snapshot` | idem |
+| Rollback + `/home` | `LINUXBEOS_BTRFS_ROLLBACK ok number=2 marker=original home=preserved` | idem |
+| Rollbacktest afgerond | `LINUXBEOS_BTRFS_TEST done` | idem |
+| Geïnstalleerd = live-look | PASS | PASS |
+| Screenshot live | [phase4-live-uefi.png](screenshots/phase4-live-uefi.png) | [phase4-live-bios.png](screenshots/phase4-live-bios.png) |
+| Vensters + Deskbar | [phase4-windows-uefi.png](screenshots/phase4-windows-uefi.png) | [phase4-windows-bios.png](screenshots/phase4-windows-bios.png) |
+| Screenshot geïnstalleerd | [phase4-installed-uefi.png](screenshots/phase4-installed-uefi.png) | [phase4-installed-bios.png](screenshots/phase4-installed-bios.png) |
+| Testmap | `tests/vm/install-uefi/` | `tests/vm/install-bios/` |
+
+| Buildgegeven | Waarde |
+|---|---|
+| ISO | `dist/linuxbeos-0.1-amd64.iso` |
+| SHA256 | `6be89f9de7dd2bb4d35a2e29cdab27d98ffc3889f2198a518975906b63eba856` |
+| Grootte | 1,5 GiB |
+| Kernel | `7.2.15+deb14-amd64` |
+| Calamares | 3.4.3 (Debian Sid) |
+| live-build | `20250814` |
+| Releasecommando | `scripts/20-build-release.sh --full` |
+| Matrixrapport | `dist/release-matrix.txt` (32 controles, 0 overgeslagen) |
+
+**Schone checkout:** een kopie zonder `.git`, `.build`, `dist` en
+`tests/vm` is met één commando gebouwd en getest:
+
+```sh
+LINUXBEOS_BUILD_DIR=/home/simon/Projecten/Linuxdist/.build \
+LINUXBEOS_DIST_DIR=/home/simon/Projecten/linuxbeos-phase4-clean-dist \
+LINUXBEOS_TEST_VM_DIR=/home/simon/Projecten/linuxbeos-phase4-clean-tests \
+  scripts/20-build-release.sh --full
+```
+
+Resultaat: ISO `b9341a1532de935785de09a9461f84331fcaa452bec1b37c6ac2360cd52401b3`,
+hostcontrole geslaagd, UEFI/BIOS-rooktest geslaagd en de volledige matrix
+geslaagd (32 controles, 0 overgeslagen). De build gebruikte de gedeelde
+build-VM en pakketcache.
+
+### Aandachtspunten
+
+- De standaard `make release` doet hostcheck, build en rooktesten; alleen
+  `make release-full` (of `--full`) is de volledige releasegate met
+  Btrfs-installatie en rollback.
+- De themacontrole start via XDG-autostart en kan enkele seconden later zijn
+  dan de Btrfs-testhulp. De installatietest wacht daarom maximaal 180 seconden
+  op `LINUXBEOS_THEME ok` in plaats van direct te falen.
+- De installatietest bewaart het thema-bewijs in `boot-result.txt` en het
+  volledige seriële log; de matrix leest dezelfde markers opnieuw.
+- De releasegate is streng: een ontbrekende `skel=ok`, `xdg=ok` of
+  `home=preserved` marker laat de matrix falen.
 
 ## Beslissingen
 
@@ -315,6 +433,13 @@ seriële marker. De visuele checklist en de volledige beschrijving staan in
 | 2026-11-05 | Liberation Sans/Mono in plaats van Swiss 721 | Open SIL OFL-alternatief dat in Debian Sid beschikbaar is en geen extra niet-vrije download vereist. |
 | 2026-11-05 | Themacontrole als seriële marker in de rooktest | De acceptatie is machinaal aantoonbaar; `--skip-theme` blijft beschikbaar voor diagnose. |
 | 2026-11-05 | Achtergrond per monitor aangevuld door `linuxbeos-theme-apply` | xfdesktop gebruikt connector-namen; de helper vult alleen ontbrekende waarden aan en respecteert gebruikerskeuzes. |
+| 2026-11-05 | Calamares-branding in BeOS-grijs/geel met een slideshow van de pijlers | De installer moet dezelfde identiteit als de desktop uitstralen; geen externe afbeeldingen of merken. |
+| 2026-11-05 | xfconf-standaarden ook naar `/etc/skel/.config/xfce4/xfconf/` | Nieuwe gebruikers krijgen de Deskbar en het thema direct; `/etc/xdg` blijft de systeembron. |
+| 2026-11-05 | `scripts/20-build-release.sh` als één releasecommando | Hostcheck, build, SHA256 en rooktesten horen bij elkaar; `--full` voegt de installatiematrix toe. |
+| 2026-11-05 | `tests/release-matrix.sh` met markervalidatie als releasegate | De acceptatie is machinaal aantoonbaar en een ontbrekende marker blokkeert de release. |
+| 2026-11-05 | Installatietest wacht 180 s op de themamarker | De XDG-autostartthemacontrole kan later starten dan de Btrfs-hulp; een vaste wachttijd voorkomt een race. |
+| 2026-11-05 | Deskbar volgt het GTK-thema (`background-style=0`) | Een vaste lichte paneelkleur bleef in `LinuxBeOS-Dark` staan; `linuxbeos-theme-mode` zet oude vaste paneelkleuren terug naar themavolgending. |
+| 2026-11-05 | ISO opnieuw gebouwd na de Deskbar-darkfix (`b0fa6e58…`, 1,7 GiB) | De UEFI- en BIOS-rooktest slagen; de donkere modus is in een VM visueel gecontroleerd met een donkere Deskbar. |
 
 ## Aandachtspunten voor latere fasen
 
@@ -325,15 +450,15 @@ seriële marker. De visuele checklist en de volledige beschrijving staan in
    en een vastgepinde cloud-image-datum gebruiken.
 3. **Buildtijd:** de eerste build duurt circa 15-20 minuten; latere builds
    hergebruiken de live-build-pakketcache in de VM.
-4. **Live-identiteit:** sinds fase 3 gebruikt de live-sessie het LinuxBeOS-
+4. **Live-identiteit:** live-sessie en doelsysteem gebruiken het LinuxBeOS-
    thema, de Deskbar en de eigen achtergrond. De definitieve distronaam en
-   eventuele gebruikersnaam blijven fase 4-aandachtspunten.
+   eventuele gebruikersnaam blijven toekomstig werk.
 5. **Thema op het doelsysteem:** `unpackfs` neemt de themabestanden en
-   `/etc/xdg`-standaardwaarden automatisch mee. Fase 4 moet expliciet testen
-   dat een nieuwe gebruiker op het geïnstalleerde systeem dezelfde look
-   krijgt en dat bestaande gebruikerskeuzes gerespecteerd blijven.
-6. **Secure Boot:** de ISO is nu unsigned. Voor fase 4 kan `shim-signed` +
-   `grub-efi-amd64-signed` worden toegevoegd; dat is nog niet getest.
+   `/etc/xdg`-standaardwaarden mee; de build vult daarnaast `/etc/skel`.
+   De fase 4-matrix bewijst dat een nieuwe gebruiker dezelfde look krijgt.
+   Bestaande gebruikerskeuzes worden niet overschreven.
+6. **Secure Boot:** de ISO is nog steeds unsigned. `shim-signed` +
+   `grub-efi-amd64-signed` toevoegen is toekomstig werk en nog niet getest.
 7. **Oude root opruimen:** na een rollback blijft `@.broken-<tijdstip>` staan.
    Dat is bewust (veilig terugvallen) maar moet door de gebruiker of een
    toekomstig opruimscript worden verwijderd.
@@ -390,3 +515,21 @@ seriële marker. De visuele checklist en de volledige beschrijving staan in
 | 2026-11-05 | Screenshots toegevoegd: `phase3-live-{uefi,bios}.png` en `phase3-windows-{uefi,bios}.png`; visuele checklist afgerond. |
 | 2026-11-05 | UEFI-installatietest herhaald op de fase 3-ISO: Btrfs-rollback geslaagd en het geïnstalleerde systeem schrijft `LINUXBEOS_THEME ok`. |
 | 2026-11-05 | Screenshot geïnstalleerd systeem toegevoegd als `phase3-installed-uefi.png`. |
+| 2026-11-05 | Fase 4 gestart: Calamares-branding in BeOS-palet, bijgewerkte slideshow en logo's. |
+| 2026-11-05 | Thema-integratie uitgebreid: build kopieert xfconf-standaarden naar `/etc/skel`; themacontrole bewijst `skel=ok xdg=ok`. |
+| 2026-11-05 | `scripts/20-build-release.sh` toegevoegd: hostcheck → ISO → SHA256 → automatische rooktest. |
+| 2026-11-05 | `tests/release-matrix.sh` toegevoegd als releasegate voor UEFI/BIOS, Btrfs, thema en rollback. |
+| 2026-11-05 | Documentatie uitgebreid met installatiehandleiding, releaseproces en fase 4-aandachtspunten. |
+| 2026-11-05 | Eerste fase 4-matrixrun: alle inhoudelijke markers groen, maar `run-install-test.sh` eindigde met status 1 door een `(( KEEP )) && ...`-regel; opgelost met een expliciete `exit 0`. |
+| 2026-11-05 | Tweede matrixrun: themacontrole op het doel kon enkele seconden na de Btrfs-hulp starten; de installatietest wacht nu maximaal 180 s op `LINUXBEOS_THEME ok` in plaats van direct te falen. |
+| 2026-11-05 | Fase 4-ISO gebouwd (`6be89f9d…`, 1,5 GiB) en de volledige releasematrix geslaagd: 32 controles, 0 overgeslagen, UEFI én BIOS. |
+| 2026-11-05 | Screenshots toegevoegd: `phase4-live-{uefi,bios}.png`, `phase4-windows-{uefi,bios}.png` en `phase4-installed-{uefi,bios}.png`. |
+| 2026-11-05 | Schone-checkouttest geslaagd met één commando (`scripts/20-build-release.sh --full`); clean-build-ISO `b9341a15…`, hostcheck, rooktesten en matrix allemaal groen. |
+| 2026-11-05 | Fase 4 afgerond; alle acceptatiecriteria en de volledige testmatrix zijn aangetoond. |
+| 2026-11-05 | Fase 3 uitgebreid met ZSH (branding + git-prompt), git, opencode 1.19.5 en Google Chrome stable. |
+| 2026-11-05 | `DSHELL` in `/etc/adduser.conf` geactiveerd zodat de live-gebruiker ook echt ZSH krijgt; Calamares zet `user.shell: /bin/zsh`. |
+| 2026-11-05 | ISO opnieuw gebouwd (`45e52a21…`, 1,7 GiB); UEFI- en BIOS-rooktest geslaagd met `shell=ok apps=ok`. |
+| 2026-11-05 | Donkere GTK2/GTK3-variant `LinuxBeOS-Dark` toegevoegd met `linuxbeos-theme-mode`; buildscript, themacontrole en releasematrix kennen `dark=ok`. |
+| 2026-11-05 | ZSH-prompt uitgebreid met een statusregel (exitcode, looptijd, achtergrondtaken), een bescheiden klok, terminaltitel en snellere offline completion. |
+| 2026-11-05 | ISO opnieuw gebouwd na de donkere GTK-variant en ZSH-uitbreiding (`46b87d4e…`, 1,7 GiB). |
+| 2026-11-05 | UEFI- en BIOS-rooktest geslaagd met `LINUXBEOS_THEME ok ... dark=ok shell=ok apps=ok`. |

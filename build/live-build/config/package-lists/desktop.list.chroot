@@ -66,6 +66,15 @@ locales
 console-setup
 keyboard-configuration
 
+# Shell, versiebeheer en extra software (fase 3)
+zsh
+git
+curl
+ca-certificates
+gnupg
+unzip
+xdg-utils
+
 # Lettertypen en hardware-ondersteuning
 fonts-dejavu-core
 fonts-liberation2

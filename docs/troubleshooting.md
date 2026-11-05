@@ -216,7 +216,16 @@ Controleer in de live-sessie:
 xfconf-query -c xfwm4 -p /general/theme
 xfconf-query -c xsettings -p /Net/ThemeName
 xfconf-query -c xsettings -p /Net/IconThemeName
-ls /usr/share/themes/LinuxBeOS /usr/share/icons/LinuxBeOS
+ls /usr/share/themes/LinuxBeOS /usr/share/themes/LinuxBeOS-Dark \
+   /usr/share/icons/LinuxBeOS
+```
+
+Voor de donkere variant:
+
+```sh
+linuxbeos-theme-mode status
+linuxbeos-theme-mode dark
+linuxbeos-theme-mode light
 ```
 
 Als de bestanden ontbreken, is de build niet goed klaargezet. Controleer in
@@ -224,6 +233,27 @@ de build-VM of `desktop/` en `overlays/` in `config/includes.chroot` staan.
 Als de bestanden er wel zijn maar de waarden niet kloppen, heeft de
 gebruiker een eigen xfconf-waarde; verwijder die of start met een schone
 `~/.config/xfce4`.
+
+### De Deskbar blijft licht in donkere modus
+
+De Deskbar hoort de kleuren van het GTK-thema te volgen. Controleer of er
+geen vaste paneelachtergrond is ingesteld:
+
+```sh
+xfconf-query -c xfce4-panel -p /panels/panel-1/background-style
+linuxbeos-theme-mode dark
+xfconf-query -c xfce4-panel -p /panels/panel-1/background-style
+```
+
+`background-style` moet `0` zijn (themakleuren). Is de waarde `1`, dan staat
+er een vaste kleur in de gebruikersconfiguratie; `linuxbeos-theme-mode`
+zet die terug naar `0`. Gebeurt dat niet, verwijder dan de oude waarde:
+
+```sh
+xfconf-query -c xfce4-panel -p /panels/panel-1/background-style -r
+```
+
+Start daarna de sessie opnieuw of herlaad het paneel.
 
 ### `LINUXBEOS_THEME fail ...` in het seriële log
 
@@ -245,6 +275,9 @@ xfconf-query -c xfce4-desktop -l | grep last-image
   oud `~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml` heeft.
 - **xfwm4/gtk/icons/cursor**: het thema staat niet op `LinuxBeOS`; controleer
   `xsettings.xml`, `xfwm4.xml` en de themamappen.
+- **panel-background**: het paneel heeft een vaste achtergrond in plaats van
+  de themakleuren. Zet `xfce4-panel/panels/panel-1/background-style` op `0`
+  of laat `linuxbeos-theme-mode` dat doen.
 
 Voor diagnose kan de rooktest met `--skip-theme` worden gestart; de sessie
 moet dan nog steeds `LINUXBEOS_SMOKE ...` halen.
@@ -274,6 +307,65 @@ xfwm4 --replace &
 
 Meld je daarna opnieuw aan; sommige applicaties lezen het icoonthema alleen
 bij het starten.
+
+### Het thema ontbreekt bij een nieuwe gebruiker op het geïnstalleerde systeem
+
+Controleer of de skel-bestanden en de systeemstanden aanwezig zijn:
+
+```sh
+ls /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/
+ls /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/
+xfconf-query -c xfwm4 -p /general/theme
+```
+
+De build hoort beide mappen te vullen. Ontbreekt `/etc/skel/.config`, dan is
+`scripts/11-build-iso-in-vm.sh` niet goed uitgevoerd; bouw opnieuw. Bestaat
+de map wel maar blijft de desktop standaard, dan heeft de gebruiker een oude
+eigen `~/.config/xfce4`-map. Hernoem die en log opnieuw in.
+
+De themacontrole moet op zowel de live-sessie als het doel schrijven:
+
+```
+LINUXBEOS_THEME ok ... deskbar=top-right wallpaper=ok skel=ok xdg=ok dark=ok
+```
+
+## Release en releasematrix
+
+### `make release` stopt bij de hostcontrole
+
+Lees de foutmelding; meestal ontbreekt `/dev/kvm`, OVMF of een van de
+hostcommando's. Zie de host-sectie hierboven. Met
+`scripts/20-build-release.sh --skip-host-check` sla je alleen de
+hostcontrole over, niet de statische projectcontrole.
+
+### De releasematrix meldt een ontbrekende marker
+
+Open `dist/release-matrix.txt`; de regel noemt de controle en het pad naar
+het seriële log. Zoek in dat log naar de marker en de laatste foutregel.
+Veelvoorkomende oorzaken:
+
+- **thema op doel ontbreekt:** de skel- of xdg-bestanden zijn niet in de ISO
+  beland; controleer de buildstap en de themacontrole.
+- **rollback faalt:** bekijk `boot-serial.log` en op het doelsysteem
+  `/var/log/linuxbeos/btrfs-test.log` en `rollback.log`.
+- **live-sessie komt niet op:** zie de rooktest-sectie hierboven.
+
+Gebruik `tests/release-matrix.sh --keep` om de schijven en screenshots te
+bewaren. Met `--skip-install` test je alleen statisch en live; dat is geen
+volledige releasegate.
+
+### De ISO is gebouwd maar `SHA256SUMS` klopt niet
+
+Bouw opnieuw of controleer handmatig:
+
+```sh
+cd dist
+sha256sum -c SHA256SUMS
+```
+
+`scripts/20-build-release.sh` schrijft de checksum na de build opnieuw en
+controleert hem direct. Een afwijkende checksum wijst op een beschadigde
+download of een onderbroken kopie.
 
 ## Veiligheid
 

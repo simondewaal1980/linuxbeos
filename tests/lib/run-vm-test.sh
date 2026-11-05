@@ -166,6 +166,10 @@ session_and_theme_ready() {
   [[ "$marker" == *"session=xfce"* && "$marker" == *"network=connected"* ]] || return 1
   if (( THEME_REQUIRED )); then
     [[ "$theme" == *"LINUXBEOS_THEME ok"* ]] || return 1
+    # Fase 4: de look moet ook via /etc/skel en /etc/xdg zijn vastgelegd;
+    # de donkere variant hoort als tweede thema in dezelfde ISO te zitten.
+    [[ "$theme" == *"skel=ok"* && "$theme" == *"xdg=ok"* ]] || return 1
+    [[ "$theme" == *"dark=ok"* ]] || return 1
   fi
   return 0
 }

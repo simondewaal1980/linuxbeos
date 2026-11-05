@@ -69,6 +69,8 @@ de test-VM's gebruikt.
 - Console: `tty0` en `ttyS0` (voor de geautomatiseerde rooktest)
 - Netwerk: NetworkManager met DHCP
 - Audio: PipeWire + WirePlumber
+- Shell: ZSH met LinuxBeOS-branding en git-prompt (root blijft bash)
+- Extra software: git, opencode (vastgepind) en Google Chrome stable
 
 De pakketlijst staat in
 `build/live-build/config/package-lists/desktop.list.chroot`. Services worden
@@ -133,6 +135,7 @@ De thema-assets staan onder `desktop/` en worden door
 
 - `desktop/xfwm4` → `/usr/share/themes/LinuxBeOS/xfwm4`;
 - `desktop/gtk` → `/usr/share/themes/LinuxBeOS/gtk-2.0` en `gtk-3.0`;
+- `desktop/gtk/dark` → `/usr/share/themes/LinuxBeOS-Dark/gtk-2.0` en `gtk-3.0`;
 - `desktop/icons/LinuxBeOS` en `desktop/cursors/LinuxBeOS` →
   `/usr/share/icons/LinuxBeOS`;
 - `desktop/backgrounds` → `/usr/share/backgrounds/linuxbeos`.
@@ -159,6 +162,26 @@ volledige integratie- en releasegate hoort bij fase 4.
 De keuzes, licentiegegevens en de visuele checklist staan in
 [theme.md](theme.md).
 
+## Integratie en releasegate (fase 4)
+
+Fase 4 maakt de losse lagen tot één release:
+
+- **Installer-branding:** Calamares gebruikt het BeOS-grijs/geel-palet en
+  een slideshow met de pijlers van de distributie.
+- **Thema op het doel:** de build kopieert de xfconf-standaardwaarden naar
+  `/etc/xdg` én naar `/etc/skel/.config/xfce4/xfconf`. Calamares' users-module
+  neemt de skel-bestanden mee naar de nieuwe gebruiker. De themacontrole
+  schrijft daarom `skel=ok xdg=ok` in de marker.
+- **Eén commando:** `scripts/20-build-release.sh` doet hostcheck → ISO →
+  SHA256 → statische controle → rooktesten. Met `--full` volgt de
+  installatiematrix.
+- **Releasegate:** `tests/release-matrix.sh` controleert UEFI/BIOS ×
+  Btrfs-installatie × thema × snapshot-boot × rollback × behoud van `/home`
+  en legt het bewijs vast in `dist/release-matrix.txt`.
+
+De gebruikersdocumentatie staat in [installation.md](installation.md), het
+releaseproces in [release.md](release.md).
+
 ## Rooktesten
 
 `tests/test-uefi.sh` en `tests/test-bios.sh` starten de ISO met een lege
@@ -168,7 +191,7 @@ NetworkManager verbonden is en schrijft dan één regel naar `/dev/ttyS0`:
 
 ```
 LINUXBEOS_SMOKE session=xfce network=connected
-LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok
+LINUXBEOS_THEME ok xfwm4=LinuxBeOS gtk=LinuxBeOS icons=LinuxBeOS cursor=LinuxBeOS deskbar=top-right wallpaper=ok skel=ok xdg=ok dark=ok
 ```
 
 De testscripts lezen het seriële log en slagen alleen als beide regels

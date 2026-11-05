@@ -1,0 +1,86 @@
+#!/bin/sh
+# Live-build chroot-hook: ZSH-standaardshell, opencode en Google Chrome.
+#
+# Deze stap draait na de pakketinstallatie. De zsh-configuratie zelf staat in
+# overlays/ en is dan al in de chroot aanwezig; hier zetten we alleen de
+# systeemkoppelingen en installeren we de extra software.
+set -eu
+
+export DEBIAN_FRONTEND=noninteractive
+
+# --- ZSH als standaardshell voor nieuwe gebruikers ------------------------
+# Debian levert DSHELL standaard uitgeschakeld aan (regel begint met #).
+# Vervang die regel én een eventueel actieve variant; voeg DSHELL toe als het
+# bestand de sleutel helemaal niet bevat.
+if [ -f /etc/adduser.conf ]; then
+  if grep -qE '^#?DSHELL=' /etc/adduser.conf; then
+    sed -i -E 's|^#?DSHELL=.*|DSHELL=/bin/zsh|' /etc/adduser.conf
+  else
+    printf 'DSHELL=/bin/zsh\n' >> /etc/adduser.conf
+  fi
+fi
+if [ -f /etc/default/useradd ]; then
+  sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd
+fi
+
+# De zsh-pakketconfiguratie blijft intact; we voegen alleen de LinuxBeOS-
+# branding toe. De gebruikersconfiguratie in /etc/skel/.zshrc doet hetzelfde
+# voor nieuwe accounts.
+if [ -f /etc/zsh/zshrc ] && ! grep -q 'linuxbeos.zsh' /etc/zsh/zshrc; then
+  {
+    printf '\n# LinuxBeOS-branding en git-prompt\n'
+    printf '[ -r /etc/zsh/linuxbeos.zsh ] && . /etc/zsh/linuxbeos.zsh\n'
+  } >> /etc/zsh/zshrc
+fi
+
+# --- Opencode CLI ---------------------------------------------------------
+SOFTWARE_CONF=/etc/linuxbeos/software.conf
+if [ -r "$SOFTWARE_CONF" ]; then
+  # shellcheck disable=SC1090
+  . "$SOFTWARE_CONF"
+fi
+
+OPENCODE_VERSION="${OPENCODE_VERSION:-1.19.5}"
+OPENCODE_SHA256_AMD64="${OPENCODE_SHA256_AMD64:-}"
+OPENCODE_URL_AMD64="${OPENCODE_URL_AMD64:-https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz}"
+
+if [ ! -x /usr/local/bin/opencode ]; then
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$tmpdir"' EXIT
+  echo "LinuxBeOS: opencode ${OPENCODE_VERSION} downloaden"
+  curl -fsSL "$OPENCODE_URL_AMD64" -o "$tmpdir/opencode.tar.gz"
+  if [ -n "$OPENCODE_SHA256_AMD64" ]; then
+    printf '%s  %s\n' "$OPENCODE_SHA256_AMD64" "$tmpdir/opencode.tar.gz" | sha256sum -c -
+  fi
+  tar -xzf "$tmpdir/opencode.tar.gz" -C "$tmpdir"
+  install -D -m 0755 "$tmpdir/opencode" /usr/local/bin/opencode
+  rm -rf "$tmpdir"
+  trap - EXIT
+fi
+
+# --- Google Chrome stable -------------------------------------------------
+GOOGLE_CHROME_CHANNEL="${GOOGLE_CHROME_CHANNEL:-stable}"
+GOOGLE_CHROME_REPO="${GOOGLE_CHROME_REPO:-https://dl.google.com/linux/chrome/deb/}"
+
+install -d -m 0755 /usr/share/keyrings /etc/apt/sources.list.d
+if [ ! -s /usr/share/keyrings/google-chrome.gpg ]; then
+  echo "LinuxBeOS: Google Chrome-sleutel ophalen"
+  curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+    | gpg --dearmor --yes -o /usr/share/keyrings/google-chrome.gpg
+  chmod 0644 /usr/share/keyrings/google-chrome.gpg
+fi
+cat > /etc/apt/sources.list.d/google-chrome.list <<EOF
+deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] ${GOOGLE_CHROME_REPO} ${GOOGLE_CHROME_CHANNEL} main
+EOF
+
+if ! dpkg-query -W -f='${Status}' google-chrome-stable 2>/dev/null | grep -q 'install ok installed'; then
+  echo "LinuxBeOS: Google Chrome ${GOOGLE_CHROME_CHANNEL} installeren"
+  apt-get update
+  apt-get install -y --no-install-recommends google-chrome-stable
+fi
+
+# De desktop-database kent Chrome pas na deze hook; de thema-hook draait
+# eerder, dus werk de cache hier opnieuw bij.
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+fi
